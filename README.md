@@ -22,8 +22,6 @@ Flags:
 
 ### In GitHub Actions
 
-To be filled
-
 ```yaml
 name: Change Check
 
@@ -33,15 +31,24 @@ on:
       - 'main'
   pull_request:
 
+env:
+  ICCHECK_FROM: "origin/main"
+  ICCHECK_TO: "HEAD"
+
 jobs:
   iccheck:
     name: Change Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: '0'
       - uses: actions/setup-go@v5
         with:
-          go-version-file: ./go.mod
+          go-version: "1.22"
+      - name: Set different base commit on main branch
+        if: github.ref == 'refs/heads/main'
+        run: echo "ICCHECK_FROM=HEAD~" >> "$GITHUB_ENV"
       - run: go install github.com/salab/iccheck@latest
-      - run: iccheck
+      - run: iccheck --from "$ICCHECK_FROM" --to "$ICCHECK_TO"
 ```
