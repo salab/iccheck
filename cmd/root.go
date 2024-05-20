@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"github.com/salab/iccheck/pkg/search"
 	"github.com/salab/iccheck/pkg/utils/printer"
 	"github.com/spf13/cobra"
@@ -35,6 +36,11 @@ var rootCmd = &cobra.Command{
 
 		// Report the findings
 		printer := getPrinter()
+		if len(clones) == 0 {
+			slog.Info(fmt.Sprintf("No clones are missing inconsistent changes."))
+		} else {
+			slog.Info(fmt.Sprintf("%d clone(s) are likely missing a consistent change.", len(clones)))
+		}
 		printer.PrintClones(repoDir, clones)
 
 		// If any inconsistent changes are found, exit with non-zero code
