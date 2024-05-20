@@ -3,6 +3,7 @@ package printer
 import (
 	"fmt"
 	"github.com/salab/iccheck/pkg/domain"
+	"github.com/salab/iccheck/pkg/utils/ds"
 	"log/slog"
 )
 
@@ -19,7 +20,7 @@ func (g *githubPrinter) PrintClones(_ string, clones []domain.Clone) {
 	if exceedLimit {
 		slog.Warn(fmt.Sprintf("Many (%d) inconsistent changes detected. Only displaying the top %d.", len(clones), githubPrintLimit))
 	}
-	for _, c := range clones[:githubPrintLimit] {
+	for _, c := range ds.FirstN(clones, githubPrintLimit) {
 		fmt.Printf("::notice file=%s,line=%d,endLine=%d,title=%s::%s\n",
 			c.Filename,
 			c.StartL,

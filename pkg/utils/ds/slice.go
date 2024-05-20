@@ -2,6 +2,13 @@ package ds
 
 import "golang.org/x/exp/constraints"
 
+func FirstN[T any](s []T, n int) []T {
+	if len(s) < n {
+		return s
+	}
+	return s[:n]
+}
+
 func Map[T any, R any](arr []T, iteratee func(T) R) []R {
 	ret := make([]R, len(arr))
 	for i, elt := range arr {
