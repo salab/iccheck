@@ -79,7 +79,7 @@ var (
 func init() {
 	rootCmd.Flags().StringVarP(&repoDir, "repo", "r", ".", "Source git directory")
 	rootCmd.Flags().StringVarP(&fromRef, "from", "f", "main", "Target git ref to compare against. Usually earlier in time.")
-	rootCmd.Flags().StringVarP(&toRef, "to", "t", "HEAD", "Source git ref to compare from. Usually later in time.")
+	rootCmd.Flags().StringVarP(&toRef, "to", "t", "HEAD", "Source git ref to compare from. Usually later in time. Set to 'WORKTREE' to specify worktree.")
 
 	rootCmd.Flags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 	rootCmd.Flags().StringVar(&formatType, "format", "console", "Format type (console, json, github)")

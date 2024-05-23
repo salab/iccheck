@@ -8,6 +8,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/format/diff"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/utils/merkletrie"
 	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/fleccs"
 	"github.com/salab/iccheck/pkg/utils/ds"
@@ -126,12 +127,7 @@ func filterMissingChanges(clones []domain.Clone, actualPatches []*chunk) []domai
 	})
 }
 
-var diffTreeOptions = &object.DiffTreeOptions{
-	DetectRenames:    true,
-	RenameScore:      50,
-	RenameLimit:      50,
-	OnlyExactRenames: false,
-}
+const worktreeRef = "WORKTREE"
 
 func Search(repoDir, fromRef, toRef string) ([]domain.Clone, error) {
 	slog.Info("Searching for inconsistent changes...", "repository", repoDir, "from", fromRef, "to", toRef)
@@ -141,24 +137,37 @@ func Search(repoDir, fromRef, toRef string) ([]domain.Clone, error) {
 
 	// Get diff chunks from source to target
 	fromHash := lo.Must(repo.ResolveRevision(plumbing.Revision(fromRef)))
-	toHash := lo.Must(repo.ResolveRevision(plumbing.Revision(toRef)))
-
 	fromCommit := lo.Must(repo.CommitObject(*fromHash))
-	toCommit := lo.Must(repo.CommitObject(*toHash))
 	slog.Info(fmt.Sprintf("Git ref (from): %v", fromCommit))
-	slog.Info(fmt.Sprintf("Git ref (to): %v", toCommit))
 
-	// Calculate diff
-	fromTree := lo.Must(repo.TreeObject(fromCommit.TreeHash))
-	toTree := lo.Must(repo.TreeObject(toCommit.TreeHash))
+	var filePatches []diff.FilePatch
+	if toRef == worktreeRef {
+		// Special handling when to-ref is set to worktree
+		// as go-git does not allow getting diff from commit to worktree
+		slog.Info(fmt.Sprintf("Git ref (to): %s", toRef))
+		workTree := lo.Must(repo.Worktree())
+		changes := diffCommitToWorktree(fromCommit, workTree)
+		slog.Info("Changes detected", "changes", len(changes))
 
-	diffs := lo.Must(object.DiffTreeWithOptions(context.TODO(), fromTree, toTree, diffTreeOptions))
-	slog.Info("Diffs detected", "files", len(diffs))
-	filePatches := lo.FlatMap(diffs, func(diff *object.Change, index int) []diff.FilePatch {
-		return lo.Must(diff.Patch()).FilePatches()
-	})
-	// Or equally,
-	// filePatches := lo.Must(fromTree.Patch(toTree)).FilePatches()
+		filePatches = ds.Map(changes, func(c merkletrie.Change) diff.FilePatch {
+			return diffChunksToWorktree(c, fromCommit, workTree)
+		})
+	} else {
+		// Normal diff (and rename) detection using go-git's diff feature
+		toHash := lo.Must(repo.ResolveRevision(plumbing.Revision(toRef)))
+		toCommit := lo.Must(repo.CommitObject(*toHash))
+		slog.Info(fmt.Sprintf("Git ref (to): %v", toCommit))
+
+		fromTree := lo.Must(fromCommit.Tree())
+		toTree := lo.Must(toCommit.Tree())
+
+		changes := lo.Must(object.DiffTreeWithOptions(context.TODO(), fromTree, toTree, object.DefaultDiffTreeOptions))
+		slog.Info("Changes detected", "changes", len(changes))
+
+		filePatches = lo.FlatMap(changes, func(c *object.Change, index int) []diff.FilePatch {
+			return lo.Must(c.Patch()).FilePatches()
+		})
+	}
 
 	chunkTrackers := make(map[string]*chunkTracker)
 	for _, filePatch := range filePatches {
