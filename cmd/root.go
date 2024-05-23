@@ -3,8 +3,8 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"github.com/salab/iccheck/pkg/printer"
 	"github.com/salab/iccheck/pkg/search"
-	"github.com/salab/iccheck/pkg/utils/printer"
 	"github.com/spf13/cobra"
 	"log/slog"
 	"os"
