@@ -1,6 +1,7 @@
 package search
 
 import (
+	"context"
 	"fmt"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-git/v5"
@@ -125,6 +126,13 @@ func filterMissingChanges(clones []domain.Clone, actualPatches []*chunk) []domai
 	})
 }
 
+var diffTreeOptions = &object.DiffTreeOptions{
+	DetectRenames:    true,
+	RenameScore:      50,
+	RenameLimit:      50,
+	OnlyExactRenames: false,
+}
+
 func Search(repoDir, fromRef, toRef string) ([]domain.Clone, error) {
 	slog.Info("Searching for inconsistent changes...", "repository", repoDir, "from", fromRef, "to", toRef)
 
@@ -144,7 +152,7 @@ func Search(repoDir, fromRef, toRef string) ([]domain.Clone, error) {
 	fromTree := lo.Must(repo.TreeObject(fromCommit.TreeHash))
 	toTree := lo.Must(repo.TreeObject(toCommit.TreeHash))
 
-	diffs := lo.Must(fromTree.Diff(toTree))
+	diffs := lo.Must(object.DiffTreeWithOptions(context.TODO(), fromTree, toTree, diffTreeOptions))
 	slog.Info("Diffs detected", "files", len(diffs))
 	filePatches := lo.FlatMap(diffs, func(diff *object.Change, index int) []diff.FilePatch {
 		return lo.Must(diff.Patch()).FilePatches()
@@ -152,7 +160,6 @@ func Search(repoDir, fromRef, toRef string) ([]domain.Clone, error) {
 	// Or equally,
 	// filePatches := lo.Must(fromTree.Patch(toTree)).FilePatches()
 
-	// TODO: check if go-git's diff handles file renames
 	chunkTrackers := make(map[string]*chunkTracker)
 	for _, filePatch := range filePatches {
 		from, to := filePatch.Files()
