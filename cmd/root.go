@@ -72,9 +72,6 @@ var (
 
 	logLevel   string
 	formatType string
-
-	// https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
-	isGitHubActions = os.Getenv("GITHUB_ACTIONS") == "true"
 )
 
 func init() {
@@ -87,12 +84,6 @@ func init() {
 }
 
 func getPrinter() printer.Printer {
-	// Special case:
-	// Auto detect GitHub Actions environment (for ease usage)
-	if isGitHubActions {
-		return printer.NewGitHubPrinter()
-	}
-
 	switch formatType {
 	case "console":
 		return printer.NewConsolePrinter()

@@ -38,10 +38,6 @@ iccheck --format json | jq -r '":::notice file=\(.filename),line=\(.start_l),end
 
 ### In GitHub Actions
 
-As a special case, ICCheck automatically checks `GITHUB_ACTIONS` env var to see if it's running on GitHub Actions.
-
-If the env is `true`, it will output the results in the GitHub Actions annotations format.
-
 An example workflow file:
 
 ```yaml
@@ -72,5 +68,5 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: echo "ICCHECK_FROM=HEAD~" >> "$GITHUB_ENV"
       - run: go install github.com/salab/iccheck@latest
-      - run: iccheck --from "$ICCHECK_FROM" --to "$ICCHECK_TO"
+      - run: iccheck --from "$ICCHECK_FROM" --to "$ICCHECK_TO" --format github
 ```
