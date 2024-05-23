@@ -24,8 +24,8 @@ import (
 func overlap(n int, q, f []byte) float64 {
 	nGramQ := strs.NGram(n, q)
 	nGramF := strs.NGram(n, f)
-	intersection := strs.Intersection(nGramQ, nGramF)
-	return float64(len(intersection)) / float64(len(nGramQ))
+	intersection := strs.IntersectionCount(nGramQ, nGramF)
+	return float64(intersection) / float64(len(nGramQ))
 }
 
 type lzSet = strs.Set

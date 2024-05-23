@@ -35,8 +35,8 @@ func lines(b []byte) [][]byte {
 func disc(line1, line2 []byte) float64 {
 	bigrams1 := strs.NGram(2, line1)
 	bigrams2 := strs.NGram(2, line2)
-	intersection := strs.Intersection(bigrams1, bigrams2)
-	return 2 * float64(len(intersection)) / float64(len(bigrams1)+len(bigrams2))
+	intersection := strs.IntersectionCount(bigrams1, bigrams2)
+	return 2 * float64(intersection) / float64(len(bigrams1)+len(bigrams2))
 }
 
 // waDiSC returns Weighted-Average DiSC (Dice-Sørensen Coefficient).
