@@ -12,7 +12,7 @@ package search
 
 import (
 	"bytes"
-	"github.com/go-git/go-billy/v5"
+	"fmt"
 	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/sergi/go-diff/diffmatchpatch"
@@ -176,23 +176,26 @@ func diffChunksToWorktree(c merkletrie.Change, commit *object.Commit, workTree *
 	action := lo.Must(c.Action())
 	var fp worktreeFilePatch
 
-	var fromFile *object.File
 	if action == merkletrie.Delete || action == merkletrie.Modify {
 		fromFilePath := c.From.String()
-		fromFile = lo.Must(commit.File(fromFilePath))
 		fp.from = &diffFile{fromFilePath}
 	}
 
-	var toFile billy.File
 	if action == merkletrie.Insert || action == merkletrie.Modify {
 		toFilePath := c.To.String()
-		toFile = lo.Must(workTree.Filesystem.Open(toFilePath))
 		fp.to = &diffFile{toFilePath}
 	}
 
 	if action == merkletrie.Modify {
+		fromFilePath := c.From.String()
+		fromFile := lo.Must(commit.File(fromFilePath))
 		fromContent := lo.Must(fromFile.Contents())
+
+		toFilePath := c.To.String()
+		toFile := lo.Must(workTree.Filesystem.Open(toFilePath))
 		toContent := string(lo.Must(io.ReadAll(toFile)))
+		lo.Must0(toFile.Close())
+
 		diffs := diff.Do(fromContent, toContent)
 		fp.chunks = ds.Map(diffs, func(d diffmatchpatch.Diff) fdiff.Chunk {
 			var typ fdiff.Operation
@@ -203,6 +206,8 @@ func diffChunksToWorktree(c merkletrie.Change, commit *object.Commit, workTree *
 				typ = fdiff.Equal
 			case diffmatchpatch.DiffInsert:
 				typ = fdiff.Add
+			default:
+				panic(fmt.Sprintf("unknown diff type: %v", d.Type))
 			}
 			return &worktreeChunk{d.Text, typ}
 		})

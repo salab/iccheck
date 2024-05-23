@@ -236,6 +236,8 @@ func Search(repoDir, fromRef, toRef string) ([]domain.Clone, error) {
 				)
 
 				fromFileL += lines
+			default:
+				panic(fmt.Sprintf("unknown chunk type: %v", chunk.Type()))
 			}
 		}
 	}
