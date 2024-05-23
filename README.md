@@ -21,7 +21,7 @@ Flags:
   -h, --help               help for iccheck
       --log-level string   Log level (debug, info, warn, error) (default "info")
   -r, --repo string        Source git directory (default ".")
-  -t, --to string          Source git ref to compare from. Usually later in time. (default "HEAD")
+  -t, --to string          Source git ref to compare from. Usually later in time. Set to 'WORKTREE' to specify worktree. (default "HEAD")
 ```
 
 ### Output Format
