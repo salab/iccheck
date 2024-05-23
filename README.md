@@ -15,6 +15,7 @@ Usage:
   iccheck [flags]
 
 Flags:
+      --fail-code int      Exit code if it detects any inconsistent changes (default: 0)
       --format string      Format type (console, json, github) (default "console")
   -f, --from string        Target git ref to compare against. Usually earlier in time. (default "main")
   -h, --help               help for iccheck

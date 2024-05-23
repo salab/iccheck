@@ -47,12 +47,13 @@ var rootCmd = &cobra.Command{
 		out := printer.PrintClones(repoDir, clones)
 		fmt.Print(string(out))
 
-		// If any inconsistent changes are found, exit with non-zero code
-		if len(clones) == 0 {
-			return nil
+		// If any inconsistent changes are found, exit with specified code
+		if len(clones) > 0 {
+			os.Exit(failCode)
 		} else {
-			return errors.New("inconsistent changes found")
+			os.Exit(0)
 		}
+		return nil
 	},
 }
 
@@ -72,6 +73,7 @@ var (
 
 	logLevel   string
 	formatType string
+	failCode   int
 )
 
 func init() {
@@ -81,6 +83,7 @@ func init() {
 
 	rootCmd.Flags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 	rootCmd.Flags().StringVar(&formatType, "format", "console", "Format type (console, json, github)")
+	rootCmd.Flags().IntVar(&failCode, "fail-code", 0, "Exit code if it detects any inconsistent changes (default: 0)")
 }
 
 func getPrinter() printer.Printer {
