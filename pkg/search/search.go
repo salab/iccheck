@@ -137,10 +137,8 @@ func Search(repoDir, fromRef, toRef string) ([]domain.Clone, error) {
 
 	fromCommit := lo.Must(repo.CommitObject(*fromHash))
 	toCommit := lo.Must(repo.CommitObject(*toHash))
-	slog.Info("Base git ref (from)")
-	fmt.Println(fromCommit)
-	slog.Info("Base git ref (to)")
-	fmt.Println(toCommit)
+	slog.Info(fmt.Sprintf("Git ref (from): %v", fromCommit))
+	slog.Info(fmt.Sprintf("Git ref (to): %v", toCommit))
 
 	// Calculate diff
 	fromTree := lo.Must(repo.TreeObject(fromCommit.TreeHash))

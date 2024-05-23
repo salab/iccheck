@@ -12,9 +12,10 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:          "iccheck",
-	Short:        "Finds inconsistent changes in your git changes",
-	SilenceUsage: true,
+	Use:           "iccheck",
+	Short:         "Finds inconsistent changes in your git changes",
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		switch logLevel {
 		case "debug":
@@ -29,19 +30,22 @@ var rootCmd = &cobra.Command{
 			return errors.New("invalid log level")
 		}
 
+		// Search for inconsistent changes
 		clones, err := search.Search(repoDir, fromRef, toRef)
 		if err != nil {
 			return err
 		}
 
 		// Report the findings
-		printer := getPrinter()
 		if len(clones) == 0 {
 			slog.Info(fmt.Sprintf("No clones are missing inconsistent changes."))
 		} else {
 			slog.Info(fmt.Sprintf("%d clone(s) are likely missing a consistent change.", len(clones)))
 		}
-		printer.PrintClones(repoDir, clones)
+
+		printer := getPrinter()
+		out := printer.PrintClones(repoDir, clones)
+		fmt.Print(string(out))
 
 		// If any inconsistent changes are found, exit with non-zero code
 		if len(clones) == 0 {
@@ -66,7 +70,8 @@ var (
 	fromRef string
 	toRef   string
 
-	logLevel string
+	logLevel   string
+	formatType string
 
 	// https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
 	isGitHubActions = os.Getenv("GITHUB_ACTIONS") == "true"
@@ -78,11 +83,24 @@ func init() {
 	rootCmd.Flags().StringVarP(&toRef, "to", "t", "HEAD", "Source git ref to compare from. Usually later in time.")
 
 	rootCmd.Flags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
+	rootCmd.Flags().StringVar(&formatType, "format", "console", "Format type (console, json, github)")
 }
 
 func getPrinter() printer.Printer {
+	// Special case:
+	// Auto detect GitHub Actions environment (for ease usage)
 	if isGitHubActions {
 		return printer.NewGitHubPrinter()
 	}
-	return printer.NewStdoutPrinter()
+
+	switch formatType {
+	case "console":
+		return printer.NewConsolePrinter()
+	case "json":
+		return printer.NewJsonPrinter()
+	case "github":
+		return printer.NewGitHubPrinter()
+	default:
+		panic(fmt.Sprintf("unknown format type: %s", formatType))
+	}
 }
