@@ -2,10 +2,10 @@ package search
 
 import (
 	"github.com/salab/iccheck/pkg/domain"
+	"github.com/salab/iccheck/pkg/fleccs"
 	"path/filepath"
 	"strings"
 
-	"github.com/salab/iccheck/pkg/fleccs"
 	"github.com/salab/iccheck/pkg/ncdsearch"
 	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/salab/iccheck/pkg/utils/files"
@@ -45,16 +45,25 @@ func ncdSearchReImpl(
 	})
 }
 
-func fleccsSearch(
+func fleccsSearchMulti(
 	basePath string,
-	filename string,
-	startL, endL int,
+	chunks []*chunk,
+	searchRoot string,
 ) []domain.Clone {
+	queries := ds.Map(chunks, func(c *chunk) *fleccs.Query {
+		return &fleccs.Query{
+			Filename: c.filename,
+			StartL:   c.beforeStartL,
+			EndL:     c.beforeEndL,
+		}
+	})
+
 	candidates := fleccs.Search(
-		basePath, filename,
-		startL, endL,
 		basePath,
+		queries,
+		searchRoot,
 	)
+
 	return ds.Map(candidates, func(c *fleccs.Candidate) domain.Clone {
 		return domain.Clone{
 			Filename: c.Filename,

@@ -3,8 +3,23 @@ package files
 import (
 	"bytes"
 	"github.com/samber/lo"
+	"io/fs"
 	"os"
+	"path/filepath"
 )
+
+func WalkAllFilenames(root string) []string {
+	filenames := make([]string, 0)
+	lo.Must0(filepath.WalkDir(root, func(fullPath string, d fs.DirEntry, err error) error {
+		if d.IsDir() {
+			return nil
+		}
+		relPath := lo.Must(filepath.Rel(root, fullPath))
+		filenames = append(filenames, relPath)
+		return nil
+	}))
+	return filenames
+}
 
 // LineIndices returns start indices of lines in the given bytes slice.
 func LineIndices(s []byte) []int {

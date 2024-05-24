@@ -147,7 +147,7 @@ func Search(repoDir, fromRef, toRef string) ([]domain.Clone, error) {
 		slog.Info(fmt.Sprintf("Git ref (to): %s", toRef))
 		workTree := lo.Must(repo.Worktree())
 		changes := diffCommitToWorktree(fromCommit, workTree)
-		slog.Info("Changes detected", "changes", len(changes))
+		slog.Info("File changes detected", "files", len(changes))
 
 		filePatches = ds.Map(changes, func(c merkletrie.Change) diff.FilePatch {
 			return diffChunksToWorktree(c, fromCommit, workTree)
@@ -162,7 +162,7 @@ func Search(repoDir, fromRef, toRef string) ([]domain.Clone, error) {
 		toTree := lo.Must(toCommit.Tree())
 
 		changes := lo.Must(object.DiffTreeWithOptions(context.TODO(), fromTree, toTree, object.DefaultDiffTreeOptions))
-		slog.Info("Changes detected", "changes", len(changes))
+		slog.Info("File changes detected", "files", len(changes))
 
 		filePatches = lo.FlatMap(changes, func(c *object.Change, index int) []diff.FilePatch {
 			return lo.Must(c.Patch()).FilePatches()
@@ -250,32 +250,34 @@ func Search(repoDir, fromRef, toRef string) ([]domain.Clone, error) {
 		slog.Debug(fmt.Sprintf("%v", patch))
 	}
 
-	// queryPatch represents query source lines
-	type queryPatch struct {
-		filename string
-		startL   int
-		endL     int
-	}
 	// Cut diffs into 3 lines for detecting micro-clones
-	microPatches := lo.FlatMap(patchChunks, func(c *chunk, _ int) []*queryPatch {
-		const chunkLines = 3
-		startL, endL := c.searchQueryLines()
-		lines := endL - startL + 1
-		if lines <= chunkLines {
-			return []*queryPatch{
-				{c.filename, startL, endL},
+	/*
+		// queryPatch represents query source lines
+		type queryPatch struct {
+			filename string
+			startL   int
+			endL     int
+		}
+		microPatches := lo.FlatMap(patchChunks, func(c *chunk, _ int) []*queryPatch {
+			const chunkLines = 3
+			startL, endL := c.searchQueryLines()
+			lines := endL - startL + 1
+			if lines <= chunkLines {
+				return []*queryPatch{
+					{c.filename, startL, endL},
+				}
 			}
-		}
-		ret := make([]*queryPatch, 0, lines-1)
-		for i := 0; i < lines-(chunkLines-1); i++ {
-			ret = append(ret, &queryPatch{
-				filename: c.filename,
-				startL:   startL + i,
-				endL:     startL + i + (chunkLines - 1),
-			})
-		}
-		return ret
-	})
+			ret := make([]*queryPatch, 0, lines-1)
+			for i := 0; i < lines-(chunkLines-1); i++ {
+				ret = append(ret, &queryPatch{
+					filename: c.filename,
+					startL:   startL + i,
+					endL:     startL + i + (chunkLines - 1),
+				})
+			}
+			return ret
+		})
+	*/
 
 	// Checkout
 	origWT := lo.Must(repo.Worktree())
@@ -294,16 +296,8 @@ func Search(repoDir, fromRef, toRef string) ([]domain.Clone, error) {
 	}()
 
 	// Search for clones including the diff, in each snapshot
-	var fromClones []domain.Clone
-	for _, patch := range microPatches {
-		slog.Debug("Searching clones", "patch", patch)
-		//clones := ncdSearchOriginal(patch, basePath)
-		//clones := ncdSearchReImpl(patch, basePath)
-		clones := fleccsSearch(fromWTPath, patch.filename, patch.startL, patch.endL)
-
-		slog.Debug(fmt.Sprintf("%d clones detected", len(clones)))
-		fromClones = append(fromClones, clones...)
-	}
+	slog.Info(fmt.Sprintf("Searching for clones corresponding to %d chunks...", len(patchChunks)))
+	fromClones := fleccsSearchMulti(fromWTPath, patchChunks, fromWTPath)
 
 	// Deduplicate overlapping clones
 	fromClones = dedupeDetectedClones(fromClones)
