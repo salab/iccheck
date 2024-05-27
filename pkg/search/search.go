@@ -97,12 +97,18 @@ func dedupeDetectedClones(clones []domain.Clone) []domain.Clone {
 		if !nextCoalesce {
 			// record coalesced clone
 			distanceSum := lo.SumBy(clones[startIdx:i+1], func(c domain.Clone) float64 { return c.Distance })
-			deduped = append(deduped, domain.Clone{
+			sources := lo.UniqBy(
+				lo.FlatMap(clones[startIdx:i+1], func(c domain.Clone, _ int) []*domain.Source { return c.Sources }),
+				func(s *domain.Source) string { return s.Key() },
+			)
+			clone := domain.Clone{
 				Filename: c.Filename,
 				StartL:   clones[startIdx].StartL,
 				EndL:     c.EndL,
 				Distance: distanceSum / float64(i-startIdx+1),
-			})
+				Sources:  sources,
+			}
+			deduped = append(deduped, clone)
 
 			startIdx = i + 1
 		}

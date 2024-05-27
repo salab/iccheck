@@ -70,6 +70,11 @@ func fleccsSearchMulti(
 			StartL:   c.StartLine,
 			EndL:     c.EndLine,
 			Distance: 1 - c.Similarity,
+			Sources: []*domain.Source{{
+				Filename: c.Source.Filename,
+				StartL:   c.Source.StartL,
+				EndL:     c.Source.EndL,
+			}},
 		}
 	})
 }

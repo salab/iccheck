@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/salab/iccheck/pkg/domain"
+	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/samber/lo"
 )
 
@@ -13,12 +14,19 @@ func NewJsonPrinter() Printer {
 	return &jsonPrinter{}
 }
 
+type source struct {
+	Filename string `json:"filename"`
+	StartL   int    `json:"start_l"`
+	EndL     int    `json:"end_l"`
+}
+
 type jsonOutput struct {
-	BaseDir  string  `json:"base_dir"`
-	Filename string  `json:"filename"`
-	StartL   int     `json:"start_l"`
-	EndL     int     `json:"end_l"`
-	Distance float64 `json:"distance"`
+	BaseDir  string    `json:"base_dir"`
+	Filename string    `json:"filename"`
+	StartL   int       `json:"start_l"`
+	EndL     int       `json:"end_l"`
+	Distance float64   `json:"distance"`
+	Sources  []*source `json:"sources"`
 }
 
 func (j *jsonPrinter) format(repoDir string, c domain.Clone) jsonOutput {
@@ -28,6 +36,13 @@ func (j *jsonPrinter) format(repoDir string, c domain.Clone) jsonOutput {
 		StartL:   c.StartL,
 		EndL:     c.EndL,
 		Distance: c.Distance,
+		Sources: ds.Map(c.Sources, func(s *domain.Source) *source {
+			return &source{
+				Filename: s.Filename,
+				StartL:   s.StartL,
+				EndL:     s.EndL,
+			}
+		}),
 	}
 }
 

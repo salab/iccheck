@@ -19,11 +19,62 @@ import (
 	"github.com/salab/iccheck/pkg/utils/strs"
 )
 
+type Source struct {
+	Filename     string
+	StartL, EndL int
+}
+
 type Candidate struct {
 	Filename   string
 	StartLine  int
 	EndLine    int
 	Similarity float64
+	// Source indicates from which query this co-change candidate was detected
+	Source Source
+}
+
+type Query struct {
+	Filename     string
+	StartL, EndL int
+
+	contextStartLine   int
+	contextEndLine     int
+	contextLineLengths []int
+	contextBigrams     []strs.Set
+}
+
+func (q *Query) toSource() Source {
+	return Source{
+		Filename: q.Filename,
+		StartL:   q.StartL,
+		EndL:     q.EndL,
+	}
+}
+
+func (q *Query) calculateContextLines(c *config, basePath string) {
+	queryFullPath := lo.Must(os.ReadFile(filepath.Join(basePath, q.Filename)))
+	queryFileLines := lines(queryFullPath)
+
+	q.contextStartLine = max(1, q.StartL-c.contextLines)               // inclusive, 1-indexed
+	q.contextEndLine = min(len(queryFileLines), q.EndL+c.contextLines) // inclusive, 1-indexed
+
+	contextLines := queryFileLines[q.contextStartLine-1 : q.contextEndLine]
+	q.contextLineLengths = ds.Map(contextLines, func(line []byte) int { return len(line) })
+	q.contextBigrams = ds.Map(contextLines, func(line []byte) strs.Set {
+		return strs.NGram(2, line)
+	})
+}
+
+func (q *Query) accountForContextLines(c *Candidate) *Candidate {
+	// The detected candidate lines are enlarged due to the context area
+	// Shrink the enlarged area to get the true clone region
+	contextStartDiff := q.StartL - q.contextStartLine
+	contextEndDiff := q.contextEndLine - q.EndL
+
+	c.StartLine += contextStartDiff
+	c.EndLine -= contextEndDiff
+
+	return c
 }
 
 func lines(b []byte) [][]byte {
@@ -78,6 +129,7 @@ func findCandidates(
 				StartLine:  startLine + 1, // 1-indexed, inclusive
 				EndLine:    endLine,       // 1-indexed, inclusive
 				Similarity: similarity,
+				Source:     q.toSource(),
 			})
 			i += len(q.contextBigrams) - 1 // Proceed the search window
 		}
@@ -122,42 +174,6 @@ func FileTreeDistance(path1, path2 string) int {
 	path1Dist := len(dirs1) - matchingLeadingPaths
 	path2Dist := len(dirs2) - matchingLeadingPaths
 	return path1Dist + path2Dist
-}
-
-type Query struct {
-	Filename     string
-	StartL, EndL int
-
-	contextStartLine   int
-	contextEndLine     int
-	contextLineLengths []int
-	contextBigrams     []strs.Set
-}
-
-func (q *Query) calculateContextLines(c *config, basePath string) {
-	queryFullPath := lo.Must(os.ReadFile(filepath.Join(basePath, q.Filename)))
-	queryFileLines := lines(queryFullPath)
-
-	q.contextStartLine = max(1, q.StartL-c.contextLines)               // inclusive, 1-indexed
-	q.contextEndLine = min(len(queryFileLines), q.EndL+c.contextLines) // inclusive, 1-indexed
-
-	contextLines := queryFileLines[q.contextStartLine-1 : q.contextEndLine]
-	q.contextLineLengths = ds.Map(contextLines, func(line []byte) int { return len(line) })
-	q.contextBigrams = ds.Map(contextLines, func(line []byte) strs.Set {
-		return strs.NGram(2, line)
-	})
-}
-
-func (q *Query) accountForContextLines(c *Candidate) *Candidate {
-	// The detected candidate lines are enlarged due to the context area
-	// Shrink the enlarged area to get the true clone region
-	contextStartDiff := q.StartL - q.contextStartLine
-	contextEndDiff := q.contextEndLine - q.EndL
-
-	c.StartLine += contextStartDiff
-	c.EndLine -= contextEndDiff
-
-	return c
 }
 
 func Search(

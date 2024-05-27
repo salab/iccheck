@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/utils/ds"
+	"strings"
 )
 
 const githubPrintLimit = 3
 
+// githubPrinter prints output in GitHub annotations compatible format.
+// https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions
 type githubPrinter struct{}
 
 func NewGitHubPrinter() Printer {
@@ -28,7 +31,17 @@ func (g *githubPrinter) PrintClones(_ string, clones []domain.Clone) []byte {
 				c.StartL,
 				c.EndL,
 				"Possibly missing change",
-				fmt.Sprintf("Possibly missing a consistent change here (L%d - L%d, distance %f)", c.StartL, c.EndL, c.Distance),
+				fmt.Sprintf(
+					"Possibly missing a consistent change here (L%d - L%d, distance %f) (%s)",
+					c.StartL, c.EndL, c.Distance,
+					// NOTE: is there any way to output multiline annotation?
+					strings.Join(
+						ds.Map(c.Sources, func(s *domain.Source) string {
+							return fmt.Sprintf("deduced from change at %s:%d (L%d - L%d)", s.Filename, s.StartL, s.StartL, s.EndL)
+						}),
+						",",
+					),
+				),
 			),
 		)
 	}
