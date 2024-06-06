@@ -47,14 +47,14 @@ func ncdSearchReImpl(
 
 func fleccsSearchMulti(
 	basePath string,
-	chunks []*chunk,
+	sources []*domain.Source,
 	searchRoot string,
-) []domain.Clone {
-	queries := ds.Map(chunks, func(c *chunk) *fleccs.Query {
+) []*domain.Clone {
+	queries := ds.Map(sources, func(s *domain.Source) *fleccs.Query {
 		return &fleccs.Query{
-			Filename: c.filename,
-			StartL:   c.beforeStartL,
-			EndL:     c.beforeEndL,
+			Filename: s.Filename,
+			StartL:   s.StartL,
+			EndL:     s.EndL,
 		}
 	})
 
@@ -64,8 +64,8 @@ func fleccsSearchMulti(
 		searchRoot,
 	)
 
-	return ds.Map(candidates, func(c *fleccs.Candidate) domain.Clone {
-		return domain.Clone{
+	return ds.Map(candidates, func(c *fleccs.Candidate) *domain.Clone {
+		return &domain.Clone{
 			Filename: c.Filename,
 			StartL:   c.StartLine,
 			EndL:     c.EndLine,

@@ -3,8 +3,10 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/printer"
 	"github.com/salab/iccheck/pkg/search"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"log/slog"
 	"os"
@@ -31,24 +33,25 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Search for inconsistent changes
-		clones, err := search.Search(repoDir, fromRef, toRef)
+		cloneSets, err := search.Search(repoDir, fromRef, toRef)
 		if err != nil {
 			return err
 		}
 
 		// Report the findings
-		if len(clones) == 0 {
+		missingChanges := lo.SumBy(cloneSets, func(set *domain.CloneSet) int { return len(set.Missing) })
+		if missingChanges == 0 {
 			slog.Info(fmt.Sprintf("No clones are missing inconsistent changes."))
 		} else {
-			slog.Info(fmt.Sprintf("%d clone(s) are likely missing a consistent change.", len(clones)))
+			slog.Info(fmt.Sprintf("%d clone(s) are likely missing a consistent change.", missingChanges))
 		}
 
 		printer := getPrinter()
-		out := printer.PrintClones(repoDir, clones)
+		out := printer.PrintClones(repoDir, cloneSets)
 		fmt.Print(string(out))
 
 		// If any inconsistent changes are found, exit with specified code
-		if len(clones) > 0 {
+		if len(cloneSets) > 0 {
 			os.Exit(failCode)
 		} else {
 			os.Exit(0)

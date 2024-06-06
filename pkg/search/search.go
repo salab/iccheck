@@ -10,9 +10,9 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/utils/merkletrie"
 	"github.com/salab/iccheck/pkg/domain"
-	"github.com/salab/iccheck/pkg/fleccs"
 	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/samber/lo"
+	"github.com/theodesp/unionfind"
 	"log/slog"
 	"os"
 	"slices"
@@ -80,62 +80,126 @@ func (t *chunkTracker) patches() []*chunk {
 }
 
 // dedupe overlapping search result
-func dedupeDetectedClones(clones []domain.Clone) []domain.Clone {
+func dedupeDetectedClones(clones []*domain.Clone) (deduped []*domain.Clone) {
 	slices.SortFunc(clones, ds.SortCompose(
-		ds.SortAsc(func(c domain.Clone) string { return c.Filename }),
-		ds.SortAsc(func(c domain.Clone) int { return c.StartL }),
+		ds.SortAsc(func(c *domain.Clone) string { return c.Filename }),
+		ds.SortAsc(func(c *domain.Clone) int { return c.StartL }),
 	))
 
-	deduped := make([]domain.Clone, 0, len(clones))
-	startIdx := 0
-	for i := 0; i < len(clones); i++ {
-		nextCoalesce := i+1 < len(clones) && // is not last in loop
-			clones[i].Filename == clones[i+1].Filename && // in the same file
-			clones[i+1].StartL <= clones[i].EndL // is overlapping
+	// First, coalesce overlapping detected clones, to make mutually exclusive 'clone' zones
+	deduped = make([]*domain.Clone, 0, len(clones))
+	{
+		startIdx := 0
+		for i := 0; i < len(clones); i++ {
+			nextCoalesce := i+1 < len(clones) && // is not last in loop
+				clones[i].Filename == clones[i+1].Filename && // in the same file
+				clones[i+1].StartL <= clones[i].EndL // is overlapping
 
-		c := clones[i]
-		if !nextCoalesce {
-			// record coalesced clone
-			distanceSum := lo.SumBy(clones[startIdx:i+1], func(c domain.Clone) float64 { return c.Distance })
-			sources := lo.UniqBy(
-				lo.FlatMap(clones[startIdx:i+1], func(c domain.Clone, _ int) []*domain.Source { return c.Sources }),
-				func(s *domain.Source) string { return s.Key() },
-			)
-			clone := domain.Clone{
-				Filename: c.Filename,
-				StartL:   clones[startIdx].StartL,
-				EndL:     c.EndL,
-				Distance: distanceSum / float64(i-startIdx+1),
-				Sources:  sources,
+			c := clones[i]
+			if !nextCoalesce {
+				// record coalesced clone
+				distanceSum := lo.SumBy(clones[startIdx:i+1], func(c *domain.Clone) float64 { return c.Distance })
+				cloneSources := lo.UniqBy(
+					lo.FlatMap(clones[startIdx:i+1], func(c *domain.Clone, _ int) []*domain.Source { return c.Sources }),
+					func(s *domain.Source) string { return s.Key() },
+				)
+				clone := &domain.Clone{
+					Filename: c.Filename,
+					StartL:   clones[startIdx].StartL,
+					EndL:     c.EndL,
+					Distance: distanceSum / float64(i-startIdx+1),
+					Sources:  cloneSources,
+				}
+
+				deduped = append(deduped, clone)
+
+				startIdx = i + 1
 			}
-			deduped = append(deduped, clone)
-
-			startIdx = i + 1
 		}
 	}
-	return deduped
+
+	return
 }
 
-func filterMissingChanges(clones []domain.Clone, actualPatches []*chunk) []domain.Clone {
+func findCloneSets(clones []*domain.Clone, sources []*domain.Source) (sets [][]*domain.Clone) {
+	// Now that we have deduped clones sorted by filename and start line,
+	// we can convert all source (query) locations to match the granularity of cloned lines.
+	matchedSources := make(map[string][]*domain.Source, len(sources))
+	{
+		clonesByFilename := lo.GroupBy(clones, func(c *domain.Clone) string { return c.Filename })
+		for _, src := range sources {
+			clonesInFile := clonesByFilename[src.Filename]
+			for _, cl := range clonesInFile {
+				// If they overlap, they 'match'.
+				hasOverlap := cl.StartL <= src.EndL && src.StartL <= cl.EndL
+				if hasOverlap {
+					matchedSources[src.Key()] = append(matchedSources[src.Key()], &domain.Source{
+						Filename: cl.Filename,
+						StartL:   cl.StartL,
+						EndL:     cl.EndL,
+					})
+				}
+			}
+		}
+	}
+
+	// We can start converting sources to clone granularity, and start building a Union-Find tree to find clone-sets.
+	cloneKeyToIdx := make(map[string]int, len(clones))
+	{
+		for i, c := range clones {
+			cloneKeyToIdx[c.Key()] = i
+		}
+	}
+	uf := unionfind.New(len(clones))
+	for i, c := range clones {
+		for _, src := range c.Sources {
+			matched := matchedSources[src.Key()]
+			for _, m := range matched {
+				j := cloneKeyToIdx[m.Key()]
+				uf.Union(i, j)
+			}
+		}
+	}
+	setByRootID := make(map[int][]*domain.Clone)
+	for i, clone := range clones {
+		root := uf.Root(i)
+		setByRootID[root] = append(setByRootID[root], clone)
+	}
+
+	return lo.Values(setByRootID)
+}
+
+func filterMissingChanges(cloneSets [][]*domain.Clone, actualPatches []*chunk) []*domain.CloneSet {
 	perFile := lo.GroupBy(actualPatches, func(p *chunk) string { return p.filename })
-	return lo.Filter(clones, func(c domain.Clone, _ int) bool {
+	isChanged := func(c *domain.Clone) bool {
 		filePatches := perFile[c.Filename]
 		// Is the clone changed by any of the patch chunks?
 		for _, p := range filePatches {
 			startL, endL := p.searchQueryLines()
 			hasOverlap := c.StartL <= endL && startL <= c.EndL
 			if hasOverlap {
-				return false
+				return true
 			}
 		}
 		// If not, the clone is missing consistent change
-		return true
+		return false
+	}
+	return ds.Map(cloneSets, func(set []*domain.Clone) *domain.CloneSet {
+		var cs domain.CloneSet
+		for _, c := range set {
+			if isChanged(c) {
+				cs.Changed = append(cs.Changed, c)
+			} else {
+				cs.Missing = append(cs.Missing, c)
+			}
+		}
+		return &cs
 	})
 }
 
 const worktreeRef = "WORKTREE"
 
-func Search(repoDir, fromRef, toRef string) ([]domain.Clone, error) {
+func Search(repoDir, fromRef, toRef string) ([]*domain.CloneSet, error) {
 	slog.Info("Searching for inconsistent changes...", "repository", repoDir, "from", fromRef, "to", toRef)
 
 	// Prepare repository
@@ -286,6 +350,7 @@ func Search(repoDir, fromRef, toRef string) ([]domain.Clone, error) {
 	*/
 
 	// Checkout
+	// TODO: fix the problem that original worktree is disturbed after the operation
 	origWT := lo.Must(repo.Worktree())
 	origHeadCommit := lo.Must(repo.ResolveRevision("HEAD"))
 	fromWT, fromWTPath, clean1 := newTmpOSFS(repo)
@@ -303,25 +368,32 @@ func Search(repoDir, fromRef, toRef string) ([]domain.Clone, error) {
 
 	// Search for clones including the diff, in each snapshot
 	slog.Info(fmt.Sprintf("Searching for clones corresponding to %d chunks...", len(patchChunks)))
-	fromClones := fleccsSearchMulti(fromWTPath, patchChunks, fromWTPath)
+	queries := ds.Map(patchChunks, func(c *chunk) *domain.Source {
+		return &domain.Source{
+			Filename: c.filename,
+			StartL:   c.beforeStartL,
+			EndL:     c.beforeEndL,
+		}
+	})
+	fromClones := fleccsSearchMulti(fromWTPath, queries, fromWTPath)
 
 	// Deduplicate overlapping clones
 	fromClones = dedupeDetectedClones(fromClones)
 
-	// Calculate inconsistent changes by listing clones not modified by this patch
-	missingClones := filterMissingChanges(fromClones, patchChunks)
+	// Calculate clone sets
+	rawCloneSets := findCloneSets(fromClones, queries)
 
-	// Use file proximity ranking from FLeCCS
-	// NOTE: Maybe we can utilize simple clone tracking to improve suggestion accuracy?
-	patchPaths := ds.Map(patchChunks, func(c *chunk) string { return c.filename })
-	slices.SortFunc(missingClones, ds.SortCompose(
-		ds.SortAsc(func(c domain.Clone) int {
-			distances := ds.Map(patchPaths, func(path string) int { return fleccs.FileTreeDistance(path, c.Filename) })
-			return lo.Min(distances)
-		}),
-		ds.SortAsc(func(c domain.Clone) float64 { return c.Distance }),
-	))
+	// Calculate inconsistent changes by listing clones not modified by this patch
+	cloneSets := filterMissingChanges(rawCloneSets, patchChunks)
+	// If all clones in a set went through some changes, no need to notify
+	cloneSets = lo.Filter(cloneSets, func(cs *domain.CloneSet, _ int) bool { return len(cs.Missing) > 0 })
+
+	// Sort
+	domain.SortCloneSets(cloneSets)
+	for _, set := range cloneSets {
+		set.Sort()
+	}
 
 	// Return the inconsistent changes found
-	return missingClones, nil
+	return cloneSets, nil
 }

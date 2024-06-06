@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/salab/iccheck/pkg/domain"
-	"github.com/salab/iccheck/pkg/utils/ds"
-	"strings"
+	"github.com/samber/lo"
 )
 
 const githubPrintLimit = 3
@@ -18,32 +17,38 @@ func NewGitHubPrinter() Printer {
 	return &githubPrinter{}
 }
 
-func (g *githubPrinter) PrintClones(_ string, clones []domain.Clone) []byte {
+func (g *githubPrinter) PrintClones(_ string, sets []*domain.CloneSet) []byte {
 	var buf bytes.Buffer
-	exceedLimit := len(clones) > githubPrintLimit
+
+	missingChanges := lo.FlatMap(sets, func(cs *domain.CloneSet, _ int) []*domain.Clone { return cs.Missing })
+	exceedLimit := len(missingChanges) > githubPrintLimit
 	if exceedLimit {
-		buf.WriteString(fmt.Sprintf("Warn: Many (%d) inconsistent changes detected. Only displaying the top %d.\n", len(clones), githubPrintLimit))
+		buf.WriteString(fmt.Sprintf("Warn: Many (%d) inconsistent changes detected. Only displaying the top %d.\n", len(missingChanges), githubPrintLimit))
 	}
-	for _, c := range ds.FirstN(clones, githubPrintLimit) {
-		buf.WriteString(
-			fmt.Sprintf("::notice file=%s,line=%d,endLine=%d,title=%s::%s\n",
-				c.Filename,
-				c.StartL,
-				c.EndL,
-				"Possibly missing change",
-				fmt.Sprintf(
-					"Possibly missing a consistent change here (L%d - L%d, distance %f) (%s)",
-					c.StartL, c.EndL, c.Distance,
-					// NOTE: is there any way to output multiline annotation?
-					strings.Join(
-						ds.Map(c.Sources, func(s *domain.Source) string {
-							return fmt.Sprintf("deduced from change at %s:%d (L%d - L%d)", s.Filename, s.StartL, s.StartL, s.EndL)
-						}),
-						",",
+
+	var limit int
+outer:
+	for _, set := range sets {
+		for _, c := range set.Missing {
+			buf.WriteString(
+				fmt.Sprintf("::notice file=%s,line=%d,endLine=%d,title=%s::%s\n",
+					c.Filename,
+					c.StartL,
+					c.EndL,
+					"Possibly missing change",
+					fmt.Sprintf(
+						"Possibly missing a consistent change here (L%d - L%d) (%d / %d clone(s) in this clone set were changed)",
+						c.StartL, c.EndL,
+						len(set.Changed), len(set.Changed)+len(set.Missing),
 					),
 				),
-			),
-		)
+			)
+
+			limit++
+			if limit >= githubPrintLimit {
+				break outer
+			}
+		}
 	}
 	return buf.Bytes()
 }
