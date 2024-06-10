@@ -57,5 +57,5 @@ func (cs *CloneSet) ChangedProportion() float64 {
 
 func SortCloneSets(sets []*CloneSet) {
 	// Sort from sets that is most likely missing consistent changes
-	slices.SortFunc(sets, ds.SortDesc((*CloneSet).ChangedProportion))
+	slices.SortFunc(sets, ds.SortAsc(func(cs *CloneSet) int { return len(cs.Missing) }))
 }

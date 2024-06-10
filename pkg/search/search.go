@@ -122,7 +122,7 @@ func dedupeDetectedClones(clones []*domain.Clone) (deduped []*domain.Clone) {
 }
 
 func findCloneSets(clones []*domain.Clone, sources []*domain.Source) (sets [][]*domain.Clone) {
-	// Now that we have deduped clones sorted by filename and start line,
+	// Now that we have deduped clones,
 	// we can convert all source (query) locations to match the granularity of cloned lines.
 	matchedSources := make(map[string][]*domain.Source, len(sources))
 	{
