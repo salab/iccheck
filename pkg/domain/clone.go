@@ -18,6 +18,26 @@ func (s Source) Key() string {
 	return fmt.Sprintf("%s-%d-%d", s.Filename, s.StartL, s.EndL)
 }
 
+// SlideCut cuts this source into multiple sources, sliding by the specified window size.
+func (s Source) SlideCut(window int) []*Source {
+	startL, endL := s.StartL, s.EndL
+	lines := endL - startL + 1
+	if lines <= window {
+		return []*Source{
+			{s.Filename, startL, endL},
+		}
+	}
+	ret := make([]*Source, 0, lines-1)
+	for i := 0; i < lines-(window-1); i++ {
+		ret = append(ret, &Source{
+			Filename: s.Filename,
+			StartL:   startL + i,
+			EndL:     startL + i + (window - 1),
+		})
+	}
+	return ret
+}
+
 type Clone struct {
 	Filename string
 	StartL   int

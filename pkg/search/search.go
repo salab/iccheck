@@ -348,35 +348,6 @@ func Search(repoDir, fromRef, toRef string) ([]*domain.CloneSet, error) {
 		slog.Debug(fmt.Sprintf("%v", patch))
 	}
 
-	// Cut diffs into 3 lines for detecting micro-clones
-	/*
-		// queryPatch represents query source lines
-		type queryPatch struct {
-			filename string
-			startL   int
-			endL     int
-		}
-		microPatches := ds.FlatMap(patchChunks, func(c *chunk) []*queryPatch {
-			const chunkLines = 3
-			startL, endL := c.searchQueryLines()
-			lines := endL - startL + 1
-			if lines <= chunkLines {
-				return []*queryPatch{
-					{c.filename, startL, endL},
-				}
-			}
-			ret := make([]*queryPatch, 0, lines-1)
-			for i := 0; i < lines-(chunkLines-1); i++ {
-				ret = append(ret, &queryPatch{
-					filename: c.filename,
-					startL:   startL + i,
-					endL:     startL + i + (chunkLines - 1),
-				})
-			}
-			return ret
-		})
-	*/
-
 	// Prepare tree for opening files
 	fromTree, err := fromCommit.Tree()
 	if err != nil {
@@ -387,8 +358,7 @@ func Search(repoDir, fromRef, toRef string) ([]*domain.CloneSet, error) {
 		return nil, errors.Wrap(err, "calculating base commit tree")
 	}
 
-	// Search for clones including the diff, in each snapshot
-	slog.Info(fmt.Sprintf("Searching for clones corresponding to %d chunks...", len(patchChunks)))
+	// Prepare queries
 	queries := ds.Map(patchChunks, func(c *chunk) *domain.Source {
 		return &domain.Source{
 			Filename: c.filename,
@@ -396,6 +366,16 @@ func Search(repoDir, fromRef, toRef string) ([]*domain.CloneSet, error) {
 			EndL:     c.beforeEndL,
 		}
 	})
+
+	// Cut diffs into 3 lines for detecting micro-clones
+	/*
+		queries := ds.FlatMap(queries, func(c *domain.Source) []*domain.Source {
+			return c.SlideCut(3)
+		})
+	*/
+
+	// Search for clones including the diff, in each snapshot
+	slog.Info(fmt.Sprintf("Searching for clones corresponding to %d chunks...", len(queries)))
 	fromClones, err := fleccsSearchMulti(fromDTree, queries, fromDTree)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching for clones")
