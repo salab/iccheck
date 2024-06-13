@@ -2,19 +2,45 @@ package ds
 
 import "golang.org/x/exp/constraints"
 
-func FirstN[T any](s []T, n int) []T {
-	if len(s) < n {
-		return s
-	}
-	return s[:n]
-}
-
-func Map[T any, R any](arr []T, iteratee func(T) R) []R {
+func Map[T any, R any, ST ~[]T](arr ST, iteratee func(T) R) []R {
 	ret := make([]R, len(arr))
 	for i, elt := range arr {
 		ret[i] = iteratee(elt)
 	}
 	return ret
+}
+
+func MapError[T any, R any, ST ~[]T](arr ST, iteratee func(T) (R, error)) ([]R, error) {
+	ret := make([]R, len(arr))
+	var err error
+	for i, elt := range arr {
+		ret[i], err = iteratee(elt)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return ret, nil
+}
+
+func FlatMap[T any, R any, ST ~[]T, SR ~[]R](arr ST, iteratee func(T) SR) SR {
+	ret := make([]R, 0, len(arr))
+	for _, elt := range arr {
+		values := iteratee(elt)
+		ret = append(ret, values...)
+	}
+	return ret
+}
+
+func FlatMapError[T any, R any, ST ~[]T, SR ~[]R](arr ST, iteratee func(T) (SR, error)) (SR, error) {
+	ret := make([]R, 0, len(arr))
+	for _, elt := range arr {
+		values, err := iteratee(elt)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, values...)
+	}
+	return ret, nil
 }
 
 func SortCompose[E any](comparators ...func(e1, e2 E) int) func(e1, e2 E) int {

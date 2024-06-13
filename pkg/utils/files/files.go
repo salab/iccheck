@@ -2,7 +2,7 @@ package files
 
 import (
 	"bytes"
-	"github.com/samber/lo"
+	"github.com/pkg/errors"
 	"os"
 	"strings"
 )
@@ -46,8 +46,11 @@ func LineIndices(s []byte) []int {
 	return indices
 }
 
-func ReadFileLines(filename string, startLine, endLine int) []byte {
-	content := lo.Must(os.ReadFile(filename))
+func ReadFileLines(filename string, startLine, endLine int) ([]byte, error) {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, errors.Wrapf(err, "reading file contents %v", filename)
+	}
 	indices := LineIndices(content)
 
 	var startIdx, endIdx int
@@ -58,5 +61,5 @@ func ReadFileLines(filename string, startLine, endLine int) []byte {
 		endIdx = indices[endLine+1]
 	}
 
-	return content[startIdx:endIdx]
+	return content[startIdx:endIdx], nil
 }

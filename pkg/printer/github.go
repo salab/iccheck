@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/salab/iccheck/pkg/domain"
-	"github.com/samber/lo"
+	"github.com/salab/iccheck/pkg/utils/ds"
 )
 
 const githubPrintLimit = 3
@@ -20,7 +20,7 @@ func NewGitHubPrinter() Printer {
 func (g *githubPrinter) PrintClones(_ string, sets []*domain.CloneSet) []byte {
 	var buf bytes.Buffer
 
-	missingChanges := lo.FlatMap(sets, func(cs *domain.CloneSet, _ int) []*domain.Clone { return cs.Missing })
+	missingChanges := ds.FlatMap(sets, func(cs *domain.CloneSet) []*domain.Clone { return cs.Missing })
 	exceedLimit := len(missingChanges) > githubPrintLimit
 	if exceedLimit {
 		buf.WriteString(fmt.Sprintf("Warn: Many (%d) inconsistent changes detected. Only displaying the top %d.\n", len(missingChanges), githubPrintLimit))

@@ -3,33 +3,20 @@ package search
 import (
 	"context"
 	"fmt"
-	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/format/diff"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/utils/merkletrie"
+	"github.com/pkg/errors"
 	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/samber/lo"
 	"github.com/theodesp/unionfind"
 	"log/slog"
-	"os"
 	"slices"
 	"strings"
 )
-
-func newTmpOSFS(repo *git.Repository) (wt *git.Worktree, path string, clean func()) {
-	tmpDir := lo.Must(os.MkdirTemp("", "osfs-"))
-	wt = lo.Must(repo.Worktree())
-	wt.Filesystem = osfs.New(tmpDir)
-	return wt, tmpDir, func() {
-		err := os.RemoveAll(tmpDir)
-		if err != nil {
-			slog.Error("failed to delete tmp osfs", "err", err)
-		}
-	}
-}
 
 type changeKind string
 
@@ -100,7 +87,7 @@ func dedupeDetectedClones(clones []*domain.Clone) (deduped []*domain.Clone) {
 				// record coalesced clone
 				distanceSum := lo.SumBy(clones[startIdx:i+1], func(c *domain.Clone) float64 { return c.Distance })
 				cloneSources := lo.UniqBy(
-					lo.FlatMap(clones[startIdx:i+1], func(c *domain.Clone, _ int) []*domain.Source { return c.Sources }),
+					ds.FlatMap(clones[startIdx:i+1], func(c *domain.Clone) []*domain.Source { return c.Sources }),
 					func(s *domain.Source) string { return s.Key() },
 				)
 				clone := &domain.Clone{
@@ -203,11 +190,20 @@ func Search(repoDir, fromRef, toRef string) ([]*domain.CloneSet, error) {
 	slog.Info("Searching for inconsistent changes...", "repository", repoDir, "from", fromRef, "to", toRef)
 
 	// Prepare repository
-	repo := lo.Must(git.PlainOpen(repoDir)) // TODO: error handling and get rid of lo.Must
+	repo, err := git.PlainOpen(repoDir)
+	if err != nil {
+		return nil, errors.Wrapf(err, "opening repository at %v", repoDir)
+	}
 
 	// Get diff chunks from source to target
-	fromHash := lo.Must(repo.ResolveRevision(plumbing.Revision(fromRef)))
-	fromCommit := lo.Must(repo.CommitObject(*fromHash))
+	fromHash, err := repo.ResolveRevision(plumbing.Revision(fromRef))
+	if err != nil {
+		return nil, errors.Wrapf(err, "resolving hash revision from %v", fromRef)
+	}
+	fromCommit, err := repo.CommitObject(*fromHash)
+	if err != nil {
+		return nil, errors.Wrapf(err, "resolving commit from hash %v", *fromHash)
+	}
 	slog.Info(fmt.Sprintf("Git ref (from): %v", fromCommit))
 
 	var filePatches []diff.FilePatch
@@ -215,28 +211,60 @@ func Search(repoDir, fromRef, toRef string) ([]*domain.CloneSet, error) {
 		// Special handling when to-ref is set to worktree
 		// as go-git does not allow getting diff from commit to worktree
 		slog.Info(fmt.Sprintf("Git ref (to): %s", toRef))
-		workTree := lo.Must(repo.Worktree())
-		changes := diffCommitToWorktree(fromCommit, workTree)
+		workTree, err := repo.Worktree()
+		if err != nil {
+			return nil, errors.Wrap(err, "retrieving worktree")
+		}
+
+		changes, err := diffCommitToWorktree(fromCommit, workTree)
+		if err != nil {
+			return nil, errors.Wrap(err, "diffing commit to worktree")
+		}
 		slog.Info("File changes detected", "files", len(changes))
 
-		filePatches = ds.Map(changes, func(c merkletrie.Change) diff.FilePatch {
+		filePatches, err = ds.MapError(changes, func(c merkletrie.Change) (diff.FilePatch, error) {
 			return diffChunksToWorktree(c, fromCommit, workTree)
 		})
+		if err != nil {
+			return nil, errors.Wrap(err, "diffing chunk to worktree")
+		}
 	} else {
 		// Normal diff (and rename) detection using go-git's diff feature
-		toHash := lo.Must(repo.ResolveRevision(plumbing.Revision(toRef)))
-		toCommit := lo.Must(repo.CommitObject(*toHash))
+		toHash, err := repo.ResolveRevision(plumbing.Revision(toRef))
+		if err != nil {
+			return nil, errors.Wrapf(err, "resolving hash revision from %v", toRef)
+		}
+		toCommit, err := repo.CommitObject(*toHash)
+		if err != nil {
+			return nil, errors.Wrapf(err, "resolving commit from hash %v", *toHash)
+		}
 		slog.Info(fmt.Sprintf("Git ref (to): %v", toCommit))
 
-		fromTree := lo.Must(fromCommit.Tree())
-		toTree := lo.Must(toCommit.Tree())
+		fromTree, err := fromCommit.Tree()
+		if err != nil {
+			return nil, errors.Wrap(err, "resolving base commit tree")
+		}
+		toTree, err := toCommit.Tree()
+		if err != nil {
+			return nil, errors.Wrap(err, "resolving target commit tree")
+		}
 
-		changes := lo.Must(object.DiffTreeWithOptions(context.TODO(), fromTree, toTree, object.DefaultDiffTreeOptions))
+		changes, err := object.DiffTreeWithOptions(context.TODO(), fromTree, toTree, object.DefaultDiffTreeOptions)
+		if err != nil {
+			return nil, errors.Wrap(err, "diffing base to target commit tree")
+		}
 		slog.Info("File changes detected", "files", len(changes))
 
-		filePatches = lo.FlatMap(changes, func(c *object.Change, index int) []diff.FilePatch {
-			return lo.Must(c.Patch()).FilePatches()
+		filePatches, err = ds.FlatMapError(changes, func(c *object.Change) ([]diff.FilePatch, error) {
+			p, err := c.Patch()
+			if err != nil {
+				return nil, err
+			}
+			return p.FilePatches(), nil
 		})
+		if err != nil {
+			return nil, errors.Wrap(err, "resolving patch from change")
+		}
 	}
 
 	chunkTrackers := make(map[string]*chunkTracker)
@@ -312,7 +340,7 @@ func Search(repoDir, fromRef, toRef string) ([]*domain.CloneSet, error) {
 		}
 	}
 
-	patchChunks := lo.FlatMap(lo.Values(chunkTrackers), func(c *chunkTracker, _ int) []*chunk {
+	patchChunks := ds.FlatMap(lo.Values(chunkTrackers), func(c *chunkTracker) []*chunk {
 		return c.patches()
 	})
 	slog.Info("Detected patch chunks", "patches", len(patchChunks))
@@ -328,7 +356,7 @@ func Search(repoDir, fromRef, toRef string) ([]*domain.CloneSet, error) {
 			startL   int
 			endL     int
 		}
-		microPatches := lo.FlatMap(patchChunks, func(c *chunk, _ int) []*queryPatch {
+		microPatches := ds.FlatMap(patchChunks, func(c *chunk) []*queryPatch {
 			const chunkLines = 3
 			startL, endL := c.searchQueryLines()
 			lines := endL - startL + 1
@@ -350,8 +378,14 @@ func Search(repoDir, fromRef, toRef string) ([]*domain.CloneSet, error) {
 	*/
 
 	// Prepare tree for opening files
-	fromTree := lo.Must(fromCommit.Tree())
-	fromDTree := lo.Must(domain.NewTreeWalkerImplGoGit(fromTree))
+	fromTree, err := fromCommit.Tree()
+	if err != nil {
+		return nil, errors.Wrap(err, "resolving base commit tree")
+	}
+	fromDTree, err := domain.NewTreeWalkerImplGoGit(fromTree)
+	if err != nil {
+		return nil, errors.Wrap(err, "calculating base commit tree")
+	}
 
 	// Search for clones including the diff, in each snapshot
 	slog.Info(fmt.Sprintf("Searching for clones corresponding to %d chunks...", len(patchChunks)))
@@ -362,7 +396,10 @@ func Search(repoDir, fromRef, toRef string) ([]*domain.CloneSet, error) {
 			EndL:     c.beforeEndL,
 		}
 	})
-	fromClones := fleccsSearchMulti(fromDTree, queries, fromDTree)
+	fromClones, err := fleccsSearchMulti(fromDTree, queries, fromDTree)
+	if err != nil {
+		return nil, errors.Wrap(err, "searching for clones")
+	}
 
 	// Deduplicate overlapping clones
 	fromClones = dedupeDetectedClones(fromClones)
@@ -374,6 +411,8 @@ func Search(repoDir, fromRef, toRef string) ([]*domain.CloneSet, error) {
 	cloneSets := filterMissingChanges(rawCloneSets, patchChunks)
 	// If all clones in a set went through some changes, no need to notify
 	cloneSets = lo.Filter(cloneSets, func(cs *domain.CloneSet, _ int) bool { return len(cs.Missing) > 0 })
+
+	// TODO: Convert from 'base' tree lines view to 'target' lines view?
 
 	// Sort
 	domain.SortCloneSets(cloneSets)

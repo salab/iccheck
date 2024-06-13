@@ -1,9 +1,8 @@
 package domain
 
 import (
-	"errors"
-	"fmt"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/pkg/errors"
 	"io"
 	"sync"
 )
@@ -47,7 +46,7 @@ func listGoGitFiles(tree *object.Tree) ([]string, error) {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("error iterating tree: %w", err)
+			return nil, errors.Wrap(err, "error iterating tree")
 		}
 
 		// Skip directory

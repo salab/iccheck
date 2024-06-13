@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/go-git/go-git/v5/plumbing/filemode"
+	"github.com/pkg/errors"
 	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"io"
@@ -27,7 +28,6 @@ import (
 	"github.com/go-git/go-git/v5/utils/merkletrie"
 	"github.com/go-git/go-git/v5/utils/merkletrie/filesystem"
 	"github.com/go-git/go-git/v5/utils/merkletrie/noder"
-	"github.com/samber/lo"
 )
 
 // ----- The following are unexported functions from github.com/go-git/go-git/v5@v5.12.0
@@ -158,22 +158,35 @@ func (fp *worktreeFilePatch) Chunks() []fdiff.Chunk {
 	return fp.chunks
 }
 
-func diffCommitToWorktree(commit *object.Commit, workTree *git.Worktree) merkletrie.Changes {
+func diffCommitToWorktree(commit *object.Commit, workTree *git.Worktree) (merkletrie.Changes, error) {
 	// git diff commit WORKTREE
-	fromTree := lo.Must(commit.Tree())
+	fromTree, err := commit.Tree()
+	if err != nil {
+		return nil, errors.Wrap(err, "resolving commit tree")
+	}
 	from := object.NewTreeRootNode(fromTree)
 
-	submodules := lo.Must(getSubmodulesStatus(workTree))
+	submodules, err := getSubmodulesStatus(workTree)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting submodules status")
+	}
 	to := filesystem.NewRootNode(workTree.Filesystem, submodules)
 
-	changes := lo.Must(merkletrie.DiffTree(from, to, diffTreeIsEquals))
+	changes, err := merkletrie.DiffTree(from, to, diffTreeIsEquals)
+	if err != nil {
+		return nil, errors.Wrap(err, "diffing trees")
+	}
 	changes = excludeIgnoredChanges(workTree, changes)
 
-	return changes
+	return changes, nil
 }
 
-func diffChunksToWorktree(c merkletrie.Change, commit *object.Commit, workTree *git.Worktree) fdiff.FilePatch {
-	action := lo.Must(c.Action())
+func diffChunksToWorktree(c merkletrie.Change, commit *object.Commit, workTree *git.Worktree) (fdiff.FilePatch, error) {
+	action, err := c.Action()
+	if err != nil {
+		return nil, errors.Wrap(err, "retrieving action for a change")
+	}
+
 	var fp worktreeFilePatch
 
 	if action == merkletrie.Delete || action == merkletrie.Modify {
@@ -188,15 +201,30 @@ func diffChunksToWorktree(c merkletrie.Change, commit *object.Commit, workTree *
 
 	if action == merkletrie.Modify {
 		fromFilePath := c.From.String()
-		fromFile := lo.Must(commit.File(fromFilePath))
-		fromContent := lo.Must(fromFile.Contents())
+		fromFile, err := commit.File(fromFilePath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "resolving base file %v", fromFilePath)
+		}
+		fromContent, err := fromFile.Contents()
+		if err != nil {
+			return nil, errors.Wrapf(err, "reading base file contents %v", fromFilePath)
+		}
 
 		toFilePath := c.To.String()
-		toFile := lo.Must(workTree.Filesystem.Open(toFilePath))
-		toContent := string(lo.Must(io.ReadAll(toFile)))
-		lo.Must0(toFile.Close())
+		toFile, err := workTree.Filesystem.Open(toFilePath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "resolving target file %v", toFilePath)
+		}
+		toContent, err := io.ReadAll(toFile)
+		if err != nil {
+			return nil, errors.Wrapf(err, "reading target file contents %v", toFilePath)
+		}
+		err = toFile.Close()
+		if err != nil {
+			return nil, errors.Wrapf(err, "closing target file %v", toFilePath)
+		}
 
-		diffs := diff.Do(fromContent, toContent)
+		diffs := diff.Do(fromContent, string(toContent))
 		fp.chunks = ds.Map(diffs, func(d diffmatchpatch.Diff) fdiff.Chunk {
 			var typ fdiff.Operation
 			switch d.Type {
@@ -213,5 +241,5 @@ func diffChunksToWorktree(c merkletrie.Change, commit *object.Commit, workTree *
 		})
 	}
 
-	return &fp
+	return &fp, nil
 }

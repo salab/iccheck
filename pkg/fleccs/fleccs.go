@@ -6,7 +6,7 @@
 package fleccs
 
 import (
-	"bytes"
+	"github.com/pkg/errors"
 	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/salab/iccheck/pkg/utils/strs"
@@ -47,9 +47,15 @@ func (q *Query) toSource() Source {
 	}
 }
 
-func (q *Query) calculateContextLines(c *config, queryTree domain.Tree) {
-	file := lo.Must(queryTree.Open(q.Filename)) // TODO: error handling
-	queryFileStrLines := lo.Must(file.Lines())  // TODO: error handling
+func (q *Query) calculateContextLines(c *config, queryTree domain.Tree) error {
+	file, err := queryTree.Open(q.Filename)
+	if err != nil {
+		return errors.Wrapf(err, "opening file %v", q.Filename)
+	}
+	queryFileStrLines, err := file.Lines()
+	if err != nil {
+		return errors.Wrapf(err, "reading file contents %v", q.Filename)
+	}
 	queryFileLines := ds.Map(queryFileStrLines, func(l string) []byte { return []byte(l) })
 
 	q.contextStartLine = max(1, q.StartL-c.contextLines)               // inclusive, 1-indexed
@@ -60,6 +66,8 @@ func (q *Query) calculateContextLines(c *config, queryTree domain.Tree) {
 	q.contextBigrams = ds.Map(contextLines, func(line []byte) strs.Set {
 		return strs.NGram(2, line)
 	})
+
+	return nil
 }
 
 func (q *Query) accountForContextLines(c *Candidate) *Candidate {
@@ -72,10 +80,6 @@ func (q *Query) accountForContextLines(c *Candidate) *Candidate {
 	c.EndLine -= contextEndDiff
 
 	return c
-}
-
-func lines(b []byte) [][]byte {
-	return bytes.Split(bytes.Trim(b, "\n"), []byte("\n"))
 }
 
 // disc returns Dice-Sørensen Coefficient.
@@ -135,16 +139,25 @@ func findCandidates(
 	return candidates
 }
 
-func fileSearch(queries []*Query, searchTree domain.Tree, searchFilename string, similarityThreshold float64) []*Candidate {
-	searchFile := lo.Must(searchTree.Open(searchFilename)) // TODO: error handling
-
-	// Skip binary file search because it is rarely needed and consumes cpu
-	isBinary := lo.Must(searchFile.IsBinary()) // TODO: error handling
-	if isBinary {
-		return nil
+func fileSearch(queries []*Query, searchTree domain.Tree, searchFilename string, similarityThreshold float64) ([]*Candidate, error) {
+	searchFile, err := searchTree.Open(searchFilename)
+	if err != nil {
+		return nil, errors.Wrapf(err, "opening search target file %v", searchFilename)
 	}
 
-	fileStrLines := lo.Must(searchFile.Lines()) // TODO: error handling
+	// Skip binary file search because it is rarely needed and consumes cpu
+	isBinary, err := searchFile.IsBinary()
+	if err != nil {
+		return nil, errors.Wrapf(err, "calculating binary status of search target file %v", searchFilename)
+	}
+	if isBinary {
+		return nil, nil
+	}
+
+	fileStrLines, err := searchFile.Lines()
+	if err != nil {
+		return nil, errors.Wrapf(err, "reading lines of search target file %v", searchFilename)
+	}
 	fileLines := ds.Map(fileStrLines, func(l string) []byte { return []byte(l) })
 
 	fileLineLengths := ds.Map(fileLines, func(line []byte) int { return len(line) })
@@ -161,7 +174,7 @@ func fileSearch(queries []*Query, searchTree domain.Tree, searchFilename string,
 		candidates = append(candidates, qCandidates...)
 	}
 
-	return candidates
+	return candidates, nil
 }
 
 func Search(
@@ -169,29 +182,32 @@ func Search(
 	queries []*Query,
 	searchTree domain.Tree,
 	options ...ConfigFunc,
-) []*Candidate {
+) ([]*Candidate, error) {
 	// Calculate config
 	c := applyConfig(options...)
 
 	// Pre-calculate query line bi-grams
 	for _, q := range queries {
-		q.calculateContextLines(c, queriesTree)
+		err := q.calculateContextLines(c, queriesTree)
+		if err != nil {
+			return nil, errors.Wrapf(err, "calculating context lines for query %v", q.Filename)
+		}
 	}
 
 	// List all file names from search root directory
 	searchFiles := searchTree.Files()
 
 	// Search for co-change candidates!
-	p := pool.NewWithResults[[]*Candidate]().WithMaxGoroutines(runtime.NumCPU())
+	p := pool.NewWithResults[[]*Candidate]().WithMaxGoroutines(runtime.NumCPU()).WithErrors()
 	for _, searchFile := range searchFiles {
-		p.Go(func() []*Candidate {
+		p.Go(func() ([]*Candidate, error) {
 			return fileSearch(queries, searchTree, searchFile, c.similarityThreshold)
 		})
 	}
-	var candidates []*Candidate
-	for _, fileCandidates := range p.Wait() {
-		candidates = append(candidates, fileCandidates...)
+	candidates, err := p.Wait()
+	if err != nil {
+		return nil, err
 	}
 
-	return candidates
+	return lo.Flatten(candidates), nil
 }
