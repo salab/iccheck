@@ -203,7 +203,7 @@ func Search(repoDir, fromRef, toRef string) ([]*domain.CloneSet, error) {
 	slog.Info("Searching for inconsistent changes...", "repository", repoDir, "from", fromRef, "to", toRef)
 
 	// Prepare repository
-	repo := lo.Must(git.PlainOpen(repoDir))
+	repo := lo.Must(git.PlainOpen(repoDir)) // TODO: error handling and get rid of lo.Must
 
 	// Get diff chunks from source to target
 	fromHash := lo.Must(repo.ResolveRevision(plumbing.Revision(fromRef)))
@@ -349,22 +349,9 @@ func Search(repoDir, fromRef, toRef string) ([]*domain.CloneSet, error) {
 		})
 	*/
 
-	// Checkout
-	// TODO: fix the problem that original worktree is disturbed after the operation
-	origWT := lo.Must(repo.Worktree())
-	origHeadCommit := lo.Must(repo.ResolveRevision("HEAD"))
-	fromWT, fromWTPath, clean1 := newTmpOSFS(repo)
-	defer clean1()
-	lo.Must0(fromWT.Reset(&git.ResetOptions{Commit: *fromHash, Mode: git.HardReset}))
-	//toWT, toWTPath, clean2 := newTmpOSFS(repo)
-	//defer clean2()
-	//lo.Must0(toWT.Reset(&git.ResetOptions{Commit: *toHash, Mode: git.HardReset}))
-	defer func() {
-		err := origWT.Reset(&git.ResetOptions{Commit: *origHeadCommit, Mode: git.MixedReset})
-		if err != nil {
-			slog.Error("Failed to reset original worktree to original HEAD", "err", err)
-		}
-	}()
+	// Prepare tree for opening files
+	fromTree := lo.Must(fromCommit.Tree())
+	fromDTree := lo.Must(domain.NewTreeWalkerImplGoGit(fromTree))
 
 	// Search for clones including the diff, in each snapshot
 	slog.Info(fmt.Sprintf("Searching for clones corresponding to %d chunks...", len(patchChunks)))
@@ -375,7 +362,7 @@ func Search(repoDir, fromRef, toRef string) ([]*domain.CloneSet, error) {
 			EndL:     c.beforeEndL,
 		}
 	})
-	fromClones := fleccsSearchMulti(fromWTPath, queries, fromWTPath)
+	fromClones := fleccsSearchMulti(fromDTree, queries, fromDTree)
 
 	// Deduplicate overlapping clones
 	fromClones = dedupeDetectedClones(fromClones)

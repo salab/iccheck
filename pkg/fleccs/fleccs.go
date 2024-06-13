@@ -7,16 +7,12 @@ package fleccs
 
 import (
 	"bytes"
+	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/utils/ds"
-	"github.com/salab/iccheck/pkg/utils/files"
+	"github.com/salab/iccheck/pkg/utils/strs"
 	"github.com/samber/lo"
 	"github.com/sourcegraph/conc/pool"
-	"os"
-	"path/filepath"
 	"runtime"
-	"strings"
-
-	"github.com/salab/iccheck/pkg/utils/strs"
 )
 
 type Source struct {
@@ -51,9 +47,10 @@ func (q *Query) toSource() Source {
 	}
 }
 
-func (q *Query) calculateContextLines(c *config, basePath string) {
-	queryFullPath := lo.Must(os.ReadFile(filepath.Join(basePath, q.Filename)))
-	queryFileLines := lines(queryFullPath)
+func (q *Query) calculateContextLines(c *config, queryTree domain.Tree) {
+	file := lo.Must(queryTree.Open(q.Filename)) // TODO: error handling
+	queryFileStrLines := lo.Must(file.Lines())  // TODO: error handling
+	queryFileLines := ds.Map(queryFileStrLines, func(l string) []byte { return []byte(l) })
 
 	q.contextStartLine = max(1, q.StartL-c.contextLines)               // inclusive, 1-indexed
 	q.contextEndLine = min(len(queryFileLines), q.EndL+c.contextLines) // inclusive, 1-indexed
@@ -138,9 +135,18 @@ func findCandidates(
 	return candidates
 }
 
-func fileSearch(queries []*Query, searchRoot, searchFilename string, similarityThreshold float64) []*Candidate {
-	fileBytes := lo.Must(os.ReadFile(filepath.Join(searchRoot, searchFilename)))
-	fileLines := lines(fileBytes)
+func fileSearch(queries []*Query, searchTree domain.Tree, searchFilename string, similarityThreshold float64) []*Candidate {
+	searchFile := lo.Must(searchTree.Open(searchFilename)) // TODO: error handling
+
+	// Skip binary file search because it is rarely needed and consumes cpu
+	isBinary := lo.Must(searchFile.IsBinary()) // TODO: error handling
+	if isBinary {
+		return nil
+	}
+
+	fileStrLines := lo.Must(searchFile.Lines()) // TODO: error handling
+	fileLines := ds.Map(fileStrLines, func(l string) []byte { return []byte(l) })
+
 	fileLineLengths := ds.Map(fileLines, func(line []byte) int { return len(line) })
 	fileLineBigrams := ds.Map(fileLines, func(line []byte) strs.Set {
 		return strs.NGram(2, line)
@@ -158,28 +164,10 @@ func fileSearch(queries []*Query, searchRoot, searchFilename string, similarityT
 	return candidates
 }
 
-func FileTreeDistance(path1, path2 string) int {
-	dirs1 := strings.Split(path1, string(os.PathSeparator))
-	dirs2 := strings.Split(path2, string(os.PathSeparator))
-
-	matchingLeadingPaths := 0
-	for i := 0; i < min(len(dirs1), len(dirs2)); i++ {
-		if dirs1[i] == dirs2[i] {
-			matchingLeadingPaths++
-		} else {
-			break
-		}
-	}
-
-	path1Dist := len(dirs1) - matchingLeadingPaths
-	path2Dist := len(dirs2) - matchingLeadingPaths
-	return path1Dist + path2Dist
-}
-
 func Search(
-	queryBasePath string,
+	queriesTree domain.Tree,
 	queries []*Query,
-	searchRoot string,
+	searchTree domain.Tree,
 	options ...ConfigFunc,
 ) []*Candidate {
 	// Calculate config
@@ -187,17 +175,17 @@ func Search(
 
 	// Pre-calculate query line bi-grams
 	for _, q := range queries {
-		q.calculateContextLines(c, queryBasePath)
+		q.calculateContextLines(c, queriesTree)
 	}
 
 	// List all file names from search root directory
-	searchFiles := files.WalkAllFilenames(searchRoot)
+	searchFiles := searchTree.Files()
 
 	// Search for co-change candidates!
 	p := pool.NewWithResults[[]*Candidate]().WithMaxGoroutines(runtime.NumCPU())
-	for _, filename := range searchFiles {
+	for _, searchFile := range searchFiles {
 		p.Go(func() []*Candidate {
-			return fileSearch(queries, searchRoot, filename, c.similarityThreshold)
+			return fileSearch(queries, searchTree, searchFile, c.similarityThreshold)
 		})
 	}
 	var candidates []*Candidate

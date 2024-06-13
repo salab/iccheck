@@ -3,22 +3,27 @@ package files
 import (
 	"bytes"
 	"github.com/samber/lo"
-	"io/fs"
 	"os"
-	"path/filepath"
+	"strings"
 )
 
-func WalkAllFilenames(root string) []string {
-	filenames := make([]string, 0)
-	lo.Must0(filepath.WalkDir(root, func(fullPath string, d fs.DirEntry, err error) error {
-		if d.IsDir() {
-			return nil
+// FileTreeDistance calculates distance in file tree according to FLeCCS ranking
+func FileTreeDistance(path1, path2 string) int {
+	dirs1 := strings.Split(path1, string(os.PathSeparator))
+	dirs2 := strings.Split(path2, string(os.PathSeparator))
+
+	matchingLeadingPaths := 0
+	for i := 0; i < min(len(dirs1), len(dirs2)); i++ {
+		if dirs1[i] == dirs2[i] {
+			matchingLeadingPaths++
+		} else {
+			break
 		}
-		relPath := lo.Must(filepath.Rel(root, fullPath))
-		filenames = append(filenames, relPath)
-		return nil
-	}))
-	return filenames
+	}
+
+	path1Dist := len(dirs1) - matchingLeadingPaths
+	path2Dist := len(dirs2) - matchingLeadingPaths
+	return path1Dist + path2Dist
 }
 
 // LineIndices returns start indices of lines in the given bytes slice.

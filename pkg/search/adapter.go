@@ -46,9 +46,9 @@ func ncdSearchReImpl(
 }
 
 func fleccsSearchMulti(
-	basePath string,
+	sourceTree domain.Tree,
 	sources []*domain.Source,
-	searchRoot string,
+	searchTree domain.Tree,
 ) []*domain.Clone {
 	queries := ds.Map(sources, func(s *domain.Source) *fleccs.Query {
 		return &fleccs.Query{
@@ -59,9 +59,9 @@ func fleccsSearchMulti(
 	})
 
 	candidates := fleccs.Search(
-		basePath,
+		sourceTree,
 		queries,
-		searchRoot,
+		searchTree,
 	)
 
 	return ds.Map(candidates, func(c *fleccs.Candidate) *domain.Clone {

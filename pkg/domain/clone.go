@@ -2,8 +2,8 @@ package domain
 
 import (
 	"fmt"
-	"github.com/salab/iccheck/pkg/fleccs"
 	"github.com/salab/iccheck/pkg/utils/ds"
+	"github.com/salab/iccheck/pkg/utils/files"
 	"github.com/samber/lo"
 	"slices"
 )
@@ -42,7 +42,7 @@ func (cs *CloneSet) Sort() {
 	patchPaths := ds.Map(cs.Changed, func(c *Clone) string { return c.Filename })
 	slices.SortFunc(cs.Missing, ds.SortCompose(
 		ds.SortAsc(func(c *Clone) int {
-			distances := ds.Map(patchPaths, func(path string) int { return fleccs.FileTreeDistance(path, c.Filename) })
+			distances := ds.Map(patchPaths, func(path string) int { return files.FileTreeDistance(path, c.Filename) })
 			return lo.Min(distances)
 		}),
 		ds.SortAsc(func(c *Clone) float64 { return c.Distance }),
