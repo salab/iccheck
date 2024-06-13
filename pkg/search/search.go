@@ -66,6 +66,35 @@ func (t *chunkTracker) patches() []*chunk {
 	})
 }
 
+// transformLineNum transforms line number 'view' from base commit to target commit.
+func (t *chunkTracker) transformLineNum(line int, isEnd bool) int {
+	for _, c := range t.chunks {
+		if c.beforeStartL <= line && line <= c.beforeEndL {
+			beforeLines := c.beforeEndL - c.beforeStartL
+			afterLines := c.afterEndL - c.afterStartL
+			isSameLines := beforeLines == afterLines
+			if isSameLines {
+				// Special case: if the chunk has the same lines between before and after, then align the lines
+				linesIntoChunk := line - c.beforeStartL
+				return c.afterStartL + linesIntoChunk
+			} else {
+				if isEnd {
+					return c.afterEndL
+				} else {
+					return c.afterStartL
+				}
+			}
+		}
+	}
+	slog.Warn(fmt.Sprintf("failed to convert line view for file %v at L%d", t.filename, line))
+	return line
+}
+
+func (t *chunkTracker) transformLineNumForChunk(c *domain.Clone) {
+	c.StartL = t.transformLineNum(c.StartL, false)
+	c.EndL = t.transformLineNum(c.EndL, true)
+}
+
 // dedupe overlapping search result
 func dedupeDetectedClones(clones []*domain.Clone) (deduped []*domain.Clone) {
 	slices.SortFunc(clones, ds.SortCompose(
@@ -392,7 +421,15 @@ func Search(repoDir, fromRef, toRef string) ([]*domain.CloneSet, error) {
 	// If all clones in a set went through some changes, no need to notify
 	cloneSets = lo.Filter(cloneSets, func(cs *domain.CloneSet, _ int) bool { return len(cs.Missing) > 0 })
 
-	// TODO: Convert from 'base' tree lines view to 'target' lines view?
+	// Convert from 'base' tree lines view to 'target' lines view
+	for _, cs := range cloneSets {
+		for _, c := range cs.Changed {
+			chunkTrackers[c.Filename].transformLineNumForChunk(c)
+		}
+		for _, c := range cs.Missing {
+			chunkTrackers[c.Filename].transformLineNumForChunk(c)
+		}
+	}
 
 	// Sort
 	domain.SortCloneSets(cloneSets)
