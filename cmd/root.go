@@ -87,6 +87,9 @@ func init() {
 	rootCmd.Flags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 	rootCmd.Flags().StringVar(&formatType, "format", "console", "Format type (console, json, github)")
 	rootCmd.Flags().IntVar(&failCode, "fail-code", 0, "Exit code if it detects any inconsistent changes (default: 0)")
+
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
+	rootCmd.AddCommand(lspCmd)
 }
 
 func getPrinter() printer.Printer {

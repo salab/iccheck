@@ -10,6 +10,8 @@ require (
 	github.com/samber/lo v1.39.0
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3
 	github.com/sourcegraph/conc v0.3.0
+	github.com/sourcegraph/go-lsp v0.0.0-20240223163137-f80c5dd31dfd
+	github.com/sourcegraph/jsonrpc2 v0.2.0
 	github.com/spf13/cobra v1.8.0
 	github.com/theodesp/unionfind v0.0.0-20200112172429-2bf90fd5b8c5
 	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
