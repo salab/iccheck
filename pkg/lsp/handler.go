@@ -1,34 +1,14 @@
-// Package lsp contains JSON-RPC 2.0 implementation for Language Server Protocol.
-// Code is partially copied from https://github.com/vito/bass/blob/main/cmd/bass/lsp.go.
 package lsp
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-type handler struct{}
-
-func NewHandler() jsonrpc2.Handler {
-	h := &handler{}
-	return jsonrpc2.HandlerWithError(h.handle)
-}
-
-func (h *handler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (result any, err error) {
-	switch req.Method {
-	case "initialize":
-		return h.handleInitialize(ctx, conn, req)
-	case "textDocument/didChange":
-		return h.handleTextDocumentDidChange(ctx, conn, req)
-	}
-
-	return nil, &jsonrpc2.Error{
-		Code:    jsonrpc2.CodeMethodNotFound,
-		Message: fmt.Sprintf("method not supported: %s", req.Method),
-	}
+func (h *handler) handleNop(_ context.Context, _ *jsonrpc2.Conn, _ *jsonrpc2.Request) (any, error) {
+	return nil, nil
 }
 
 type initializeResult struct {
@@ -36,14 +16,19 @@ type initializeResult struct {
 }
 
 type serverCapabilities struct {
-	DiagnosticProvider struct{} `json:"diagnosticProvider"`
+	TextDocumentSync   lsp.TextDocumentSyncOptions `json:"textDocumentSync"`
+	DiagnosticProvider diagnosticProvider          `json:"diagnosticProvider"`
 }
 
-func (h *handler) handleInitialize(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (result any, err error) {
+type diagnosticProvider struct {
+	InterFileDependencies bool `json:"interFileDependencies"`
+	WorkspaceDiagnostics  bool `json:"workspaceDiagnostics"`
+}
+
+func (h *handler) handleInitialize(_ context.Context, _ *jsonrpc2.Conn, req *jsonrpc2.Request) (any, error) {
 	if req.Params == nil {
 		return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
 	}
-
 	var params lsp.InitializeParams
 	if err := json.Unmarshal(*req.Params, &params); err != nil {
 		return nil, err
@@ -51,11 +36,86 @@ func (h *handler) handleInitialize(ctx context.Context, conn *jsonrpc2.Conn, req
 
 	return initializeResult{
 		Capabilities: serverCapabilities{
-			DiagnosticProvider: struct{}{},
+			TextDocumentSync: lsp.TextDocumentSyncOptions{
+				OpenClose: true,
+				Change:    lsp.TDSKFull,
+			},
+			DiagnosticProvider: diagnosticProvider{
+				InterFileDependencies: false,
+				WorkspaceDiagnostics:  false,
+			},
 		},
 	}, nil
 }
 
-func (h *handler) handleTextDocumentDidChange(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (result any, err error) {
-	panic("implement me")
+func (h *handler) handleTextDocumentDidOpen(_ context.Context, _ *jsonrpc2.Conn, req *jsonrpc2.Request) (any, error) {
+	if req.Params == nil {
+		return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+	}
+	var params lsp.DidOpenTextDocumentParams
+	if err := json.Unmarshal(*req.Params, &params); err != nil {
+		return nil, err
+	}
+
+	h.files[string(params.TextDocument.URI)] = params.TextDocument.Text
+
+	return nil, nil
+}
+
+func (h *handler) handleTextDocumentDidChange(_ context.Context, _ *jsonrpc2.Conn, req *jsonrpc2.Request) (any, error) {
+	if req.Params == nil {
+		return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+	}
+	var params lsp.DidChangeTextDocumentParams
+	if err := json.Unmarshal(*req.Params, &params); err != nil {
+		return nil, err
+	}
+
+	h.files[string(params.TextDocument.URI)] = params.ContentChanges[0].Text
+
+	return nil, nil
+}
+
+func (h *handler) handleTextDocumentDidClose(_ context.Context, _ *jsonrpc2.Conn, req *jsonrpc2.Request) (any, error) {
+	if req.Params == nil {
+		return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+	}
+	var params lsp.DidCloseTextDocumentParams
+	if err := json.Unmarshal(*req.Params, &params); err != nil {
+		return nil, err
+	}
+
+	delete(h.files, string(params.TextDocument.URI))
+
+	return nil, nil
+}
+
+type textDocumentDiagnosticParams struct {
+	TextDocument struct {
+		URI string `json:"uri"`
+	} `json:"textDocument"`
+}
+
+type textDocumentDiagnosticReport struct {
+	Kind  string           `json:"kind"`
+	Items []lsp.Diagnostic `json:"items"`
+}
+
+func (h *handler) handleTextDocumentDiagnostic(ctx context.Context, _ *jsonrpc2.Conn, req *jsonrpc2.Request) (any, error) {
+	if req.Params == nil {
+		return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+	}
+	var params textDocumentDiagnosticParams
+	if err := json.Unmarshal(*req.Params, &params); err != nil {
+		return nil, err
+	}
+
+	items, err := h.analyzeFile(ctx, params.TextDocument.URI)
+	if err != nil {
+		return nil, err
+	}
+	return textDocumentDiagnosticReport{
+		Kind:  "full",
+		Items: items,
+	}, nil
 }

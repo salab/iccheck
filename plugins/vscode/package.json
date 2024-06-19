@@ -1,0 +1,27 @@
+{
+	"name": "iccheck-client",
+	"description": "ICCheck LSP Client",
+	"license": "MIT",
+	"version": "0.0.1",
+	"engines": {
+		"vscode": "^1.75.0"
+	},
+	"activationEvents": [
+		"onLanguage"
+	],
+	"main": "./out/extension",
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -b",
+		"watch": "tsc -b -w",
+		"dev": "code --extensionDevelopmentPath=$(pwd)"
+	},
+	"dependencies": {
+		"vscode-languageclient": "9.0.1"
+	},
+	"devDependencies": {
+		"@types/node": "20.14.5",
+		"@types/vscode": "1.90.0",
+		"typescript": "5.4.5"
+	}
+}
