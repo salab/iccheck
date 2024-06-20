@@ -41,7 +41,7 @@ func (h *handler) handleInitialize(_ context.Context, _ *jsonrpc2.Conn, req *jso
 				Change:    lsp.TDSKFull,
 			},
 			DiagnosticProvider: diagnosticProvider{
-				InterFileDependencies: false,
+				InterFileDependencies: true,
 				WorkspaceDiagnostics:  false,
 			},
 		},

@@ -14,8 +14,7 @@ export function activate(context: ExtensionContext) {
 	};
 
 	const clientOptions: LanguageClientOptions = {
-		// TODO: select all documents?
-		documentSelector: [{ pattern: '**/*.{txt,js,yaml}' }]
+		documentSelector: [{ scheme: 'file', pattern: '**/*' }]
 	};
 
 	client = new LanguageClient(
