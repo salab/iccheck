@@ -12,7 +12,8 @@ import (
 type handler struct {
 	conn *jsonrpc2.Conn
 
-	files map[string]string
+	rootPath string
+	files    map[string]string
 }
 
 func NewHandler() jsonrpc2.Handler {

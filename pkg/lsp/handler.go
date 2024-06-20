@@ -5,7 +5,16 @@ import (
 	"encoding/json"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
+	"os"
+	"strings"
 )
+
+const fileURIPrefix = "file://"
+
+func (h *handler) trimFilePrefix(uri lsp.DocumentURI) string {
+	fullPath := strings.TrimPrefix(string(uri), fileURIPrefix)
+	return strings.TrimPrefix(fullPath, h.rootPath+string(os.PathSeparator))
+}
 
 func (h *handler) handleNop(_ context.Context, _ *jsonrpc2.Conn, _ *jsonrpc2.Request) (any, error) {
 	return nil, nil
@@ -34,6 +43,8 @@ func (h *handler) handleInitialize(_ context.Context, _ *jsonrpc2.Conn, req *jso
 		return nil, err
 	}
 
+	h.rootPath = strings.TrimPrefix(string(params.RootURI), fileURIPrefix)
+
 	return initializeResult{
 		Capabilities: serverCapabilities{
 			TextDocumentSync: lsp.TextDocumentSyncOptions{
@@ -57,7 +68,7 @@ func (h *handler) handleTextDocumentDidOpen(_ context.Context, _ *jsonrpc2.Conn,
 		return nil, err
 	}
 
-	h.files[string(params.TextDocument.URI)] = params.TextDocument.Text
+	h.files[h.trimFilePrefix(params.TextDocument.URI)] = params.TextDocument.Text
 
 	return nil, nil
 }
@@ -71,7 +82,7 @@ func (h *handler) handleTextDocumentDidChange(_ context.Context, _ *jsonrpc2.Con
 		return nil, err
 	}
 
-	h.files[string(params.TextDocument.URI)] = params.ContentChanges[0].Text
+	h.files[h.trimFilePrefix(params.TextDocument.URI)] = params.ContentChanges[0].Text
 
 	return nil, nil
 }
@@ -85,7 +96,7 @@ func (h *handler) handleTextDocumentDidClose(_ context.Context, _ *jsonrpc2.Conn
 		return nil, err
 	}
 
-	delete(h.files, string(params.TextDocument.URI))
+	delete(h.files, h.trimFilePrefix(params.TextDocument.URI))
 
 	return nil, nil
 }
@@ -110,7 +121,7 @@ func (h *handler) handleTextDocumentDiagnostic(ctx context.Context, _ *jsonrpc2.
 		return nil, err
 	}
 
-	items, err := h.analyzeFile(ctx, params.TextDocument.URI)
+	items, err := h.analyzeFile(ctx, h.trimFilePrefix(lsp.DocumentURI(params.TextDocument.URI)))
 	if err != nil {
 		return nil, err
 	}

@@ -10,10 +10,14 @@ import (
 	"github.com/pkg/errors"
 	"io"
 	"strings"
+	"sync"
 )
 
 type goGitCommitTree struct {
 	commit *object.Commit
+
+	// go-git's (*object).Commit does not allow concurrent read through File() for some reason
+	l sync.Mutex
 }
 
 func NewGoGitCommitTree(commit *object.Commit) Tree {
@@ -46,6 +50,9 @@ func (g *goGitCommitTree) FilterIgnoredChanges(changes merkletrie.Changes) merkl
 }
 
 func (g *goGitCommitTree) ReadFile(path string) (string, error) {
+	g.l.Lock()
+	defer g.l.Unlock()
+
 	file, err := g.commit.File(path)
 	if err != nil {
 		return "", errors.Wrapf(err, "resolving file %v", path)
@@ -142,6 +149,10 @@ type nullBillyFile struct {
 
 func (f *billyInMemoryFile) Name() string {
 	return f.name
+}
+
+func (f *billyInMemoryFile) Close() error {
+	return nil
 }
 
 func NewGoGitWorktreeWithOverlay(worktree *git.Worktree, overlay map[string]string) Tree {
