@@ -82,7 +82,14 @@ func (h *handler) handleTextDocumentDidChange(_ context.Context, _ *jsonrpc2.Con
 		return nil, err
 	}
 
-	h.files[h.trimFilePrefix(params.TextDocument.URI)] = params.ContentChanges[0].Text
+	filename := h.trimFilePrefix(params.TextDocument.URI)
+	h.files[filename] = params.ContentChanges[0].Text
+
+	// Update calculation cache
+	gitPath, ok := getGitRoot(h.rootPath, filename)
+	if ok {
+		h.calcCache.Forget(strings.Join(gitPath, string(os.PathSeparator)))
+	}
 
 	return nil, nil
 }

@@ -14,7 +14,8 @@ import (
 	"strings"
 )
 
-func getGitRoot(root string, path []string) ([]string, bool) {
+func getGitRoot(root string, filename string) ([]string, bool) {
+	path := strings.Split(filename, string(os.PathSeparator))
 	for i := len(path) - 1; i >= 0; i-- {
 		gitPath := []string{root}
 		gitPath = append(gitPath, path[0:i]...)
@@ -32,41 +33,14 @@ func (h *handler) analyzeFile(ctx context.Context, filename string) (diagnostics
 	diagnostics = make([]lsp.Diagnostic, 0) // Should not be "nil" because nil slice gets marshalled into "null"
 
 	// Check .git directory
-	slog.Info("diagnostic", "filename", filename)
-	path := strings.Split(filename, string(os.PathSeparator))
-	gitPath, ok := getGitRoot(h.rootPath, path)
+	gitPath, ok := getGitRoot(h.rootPath, filename)
 	if !ok {
 		slog.Warn(fmt.Sprintf("no parent of %s/%s contains git directory: skipping analysis", h.rootPath, filename))
 		return diagnostics, nil
 	}
 
-	slog.Info("analyzing", "filename", filename, "gitPath", gitPath)
-
-	// Get head tree
-	gitFullPath := filepath.Join(append([]string{h.rootPath}, gitPath...)...)
-	repo, err := git.PlainOpen(gitFullPath)
-	if err != nil {
-		return diagnostics, errors.Wrap(err, "opening git directory")
-	}
-	headHash, err := repo.ResolveRevision("HEAD")
-	if err != nil {
-		return nil, errors.Wrapf(err, "resolving hash revision from %v", headHash)
-	}
-	headCommit, err := repo.CommitObject(*headHash)
-	if err != nil {
-		return nil, errors.Wrapf(err, "resolving commit from hash %v", *headHash)
-	}
-	headTree := domain.NewGoGitCommitTree(headCommit)
-
-	// Get overlay tree
-	worktree, err := repo.Worktree()
-	if err != nil {
-		return nil, errors.Wrap(err, "resolving worktree")
-	}
-	targetTree := domain.NewGoGitWorktreeWithOverlay(worktree, h.files)
-
 	// Calculate
-	cloneSets, err := search.Search(headTree, targetTree)
+	cloneSets, err := h.calcCache.Get(ctx, filepath.Join(gitPath...))
 	if err != nil {
 		return diagnostics, err
 	}
@@ -93,4 +67,40 @@ func (h *handler) analyzeFile(ctx context.Context, filename string) (diagnostics
 	}
 
 	return diagnostics, nil
+}
+
+func (h *handler) getCloneSets(_ context.Context, gitPath string) ([]*domain.CloneSet, error) {
+	slog.Info("analyzing", "gitPath", gitPath)
+
+	// Open repository
+	gitFullPath := filepath.Join(append([]string{h.rootPath}, gitPath)...)
+	repo, err := git.PlainOpen(gitFullPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "opening git directory")
+	}
+
+	// Get head tree
+	headHash, err := repo.ResolveRevision("HEAD")
+	if err != nil {
+		return nil, errors.Wrapf(err, "resolving hash revision from %v", headHash)
+	}
+	headCommit, err := repo.CommitObject(*headHash)
+	if err != nil {
+		return nil, errors.Wrapf(err, "resolving commit from hash %v", *headHash)
+	}
+	headTree := domain.NewGoGitCommitTree(headCommit)
+
+	// Get overlay tree
+	worktree, err := repo.Worktree()
+	if err != nil {
+		return nil, errors.Wrap(err, "resolving worktree")
+	}
+	targetTree := domain.NewGoGitWorktreeWithOverlay(worktree, h.files)
+
+	// Calculate
+	cloneSets, err := search.Search(headTree, targetTree)
+	if err != nil {
+		return nil, err
+	}
+	return cloneSets, nil
 }

@@ -5,21 +5,27 @@ package lsp
 import (
 	"context"
 	"fmt"
+	"github.com/motoki317/sc"
+	"github.com/salab/iccheck/pkg/domain"
 	"github.com/sourcegraph/jsonrpc2"
 	"log/slog"
+	"time"
 )
 
 type handler struct {
 	conn *jsonrpc2.Conn
 
-	rootPath string
-	files    map[string]string
+	calcCache *sc.Cache[string, []*domain.CloneSet]
+	rootPath  string
+	files     map[string]string
 }
 
 func NewHandler() jsonrpc2.Handler {
 	h := &handler{
 		files: make(map[string]string),
 	}
+	// Dedupe calls to clone set calculation
+	h.calcCache = sc.NewMust(h.getCloneSets, time.Hour, time.Hour, sc.EnableStrictCoalescing())
 	return jsonrpc2.HandlerWithError(h.handle)
 }
 
