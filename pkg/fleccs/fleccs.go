@@ -47,7 +47,7 @@ func (q *Query) toSource() Source {
 	}
 }
 
-func (q *Query) calculateContextLines(c *config, queryTree domain.Tree) error {
+func (q *Query) calculateContextLines(c *config, queryTree domain.Searcher) error {
 	file, err := queryTree.Open(q.Filename)
 	if err != nil {
 		return errors.Wrapf(err, "opening file %v", q.Filename)
@@ -139,7 +139,7 @@ func findCandidates(
 	return candidates
 }
 
-func fileSearch(queries []*Query, searchTree domain.Tree, searchFilename string, similarityThreshold float64) ([]*Candidate, error) {
+func fileSearch(queries []*Query, searchTree domain.Searcher, searchFilename string, similarityThreshold float64) ([]*Candidate, error) {
 	searchFile, err := searchTree.Open(searchFilename)
 	if err != nil {
 		return nil, errors.Wrapf(err, "opening search target file %v", searchFilename)
@@ -178,9 +178,9 @@ func fileSearch(queries []*Query, searchTree domain.Tree, searchFilename string,
 }
 
 func Search(
-	queriesTree domain.Tree,
+	queriesTree domain.Searcher,
 	queries []*Query,
-	searchTree domain.Tree,
+	searchTree domain.Searcher,
 	options ...ConfigFunc,
 ) ([]*Candidate, error) {
 	// Calculate config
@@ -195,7 +195,10 @@ func Search(
 	}
 
 	// List all file names from search root directory
-	searchFiles := searchTree.Files()
+	searchFiles, err := searchTree.Files()
+	if err != nil {
+		return nil, errors.Wrap(err, "listing search tree files")
+	}
 
 	// Search for co-change candidates!
 	p := pool.NewWithResults[[]*Candidate]().WithMaxGoroutines(runtime.NumCPU()).WithErrors()

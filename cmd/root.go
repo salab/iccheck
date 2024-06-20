@@ -1,8 +1,10 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/pkg/errors"
 	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/printer"
 	"github.com/salab/iccheck/pkg/search"
@@ -14,8 +16,12 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:           "iccheck",
-	Short:         "Finds inconsistent changes in your git changes",
+	Use:   "iccheck",
+	Short: "Finds inconsistent changes in your git changes",
+	Long: `Finds inconsistent changes in your git changes.
+
+Specify special values in base or target git ref arguments to compare against some special filesystems.
+  "WORKTREE" : Compare against the current worktree.`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -32,8 +38,25 @@ var rootCmd = &cobra.Command{
 			return errors.New("invalid log level")
 		}
 
+		// Prepare
+		repo, err := git.PlainOpen(repoDir)
+		if err != nil {
+			return errors.Wrapf(err, "opening repository at %v", repoDir)
+		}
+		fromTree, err := resolveTree(repo, fromRef)
+		if err != nil {
+			return errors.Wrap(err, "resolving base tree")
+		}
+		toTree, err := resolveTree(repo, toRef)
+		if err != nil {
+			return errors.Wrap(err, "resolving target tree")
+		}
+
 		// Search for inconsistent changes
-		cloneSets, err := search.Search(repoDir, fromRef, toRef)
+		slog.Info("Searching for inconsistent changes...", "repository", repoDir, "from", fromRef, "to", toRef)
+		slog.Info(fmt.Sprintf("Base ref: %v", fromTree.String()))
+		slog.Info(fmt.Sprintf("Target ref: %v", toTree.String()))
+		cloneSets, err := search.Search(fromTree, toTree)
 		if err != nil {
 			return err
 		}
@@ -81,8 +104,8 @@ var (
 
 func init() {
 	rootCmd.Flags().StringVarP(&repoDir, "repo", "r", ".", "Source git directory")
-	rootCmd.Flags().StringVarP(&fromRef, "from", "f", "main", "Target git ref to compare against. Usually earlier in time.")
-	rootCmd.Flags().StringVarP(&toRef, "to", "t", "HEAD", "Source git ref to compare from. Usually later in time. Set to 'WORKTREE' to specify worktree.")
+	rootCmd.Flags().StringVarP(&fromRef, "from", "f", "main", "Base git ref to compare against. Usually earlier in time.")
+	rootCmd.Flags().StringVarP(&toRef, "to", "t", "HEAD", "Target git ref to compare from. Usually later in time.")
 
 	rootCmd.Flags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 	rootCmd.Flags().StringVar(&formatType, "format", "console", "Format type (console, json, github)")
@@ -90,6 +113,30 @@ func init() {
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.AddCommand(lspCmd)
+}
+
+const worktreeRef = "WORKTREE"
+
+func resolveTree(repo *git.Repository, ref string) (domain.Tree, error) {
+	// Special refs
+	if ref == worktreeRef {
+		worktree, err := repo.Worktree()
+		if err != nil {
+			return nil, errors.Wrap(err, "retrieving worktree")
+		}
+		return domain.NewGoGitWorkTree(worktree), nil
+	}
+
+	// Normal git ref
+	hash, err := repo.ResolveRevision(plumbing.Revision(ref))
+	if err != nil {
+		return nil, errors.Wrapf(err, "resolving hash revision from %v", ref)
+	}
+	commit, err := repo.CommitObject(*hash)
+	if err != nil {
+		return nil, errors.Wrapf(err, "resolving commit from hash %v", *hash)
+	}
+	return domain.NewGoGitCommitTree(commit), nil
 }
 
 func getPrinter() printer.Printer {

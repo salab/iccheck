@@ -50,9 +50,9 @@ func ncdSearchReImpl(
 }
 
 func fleccsSearchMulti(
-	sourceTree domain.Tree,
+	sourceTree domain.Searcher,
 	sources []*domain.Source,
-	searchTree domain.Tree,
+	searchTree domain.Searcher,
 ) ([]*domain.Clone, error) {
 	queries := ds.Map(sources, func(s *domain.Source) *fleccs.Query {
 		return &fleccs.Query{
