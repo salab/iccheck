@@ -9,7 +9,7 @@ let client: LanguageClient;
 
 export function activate(context: ExtensionContext) {
 	const serverOptions: ServerOptions = {
-		command: context.asAbsolutePath('../../iccheck'),
+		command: context.asAbsolutePath('./iccheck'),
 		args: ['lsp']
 	};
 

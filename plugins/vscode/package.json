@@ -1,10 +1,14 @@
 {
 	"name": "iccheck-client",
-	"description": "ICCheck LSP Client",
+	"description": "ICCheck - Inconsistency Check",
 	"license": "MIT",
-	"version": "0.0.1",
+	"version": "0.3.0",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/salab/iccheck.git"
+	},
 	"engines": {
-		"vscode": "^1.75.0"
+		"vscode": "^1.90.0"
 	},
 	"activationEvents": [
 		"onLanguage"
@@ -12,8 +16,8 @@
 	"main": "./out/extension",
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -b",
-		"watch": "tsc -b -w",
+		"compile": "tsc -b && cd ../../ && go build . && cp iccheck ./plugins/vscode",
+		"watch": "cd ../../ && npm-watch",
 		"dev": "code --extensionDevelopmentPath=$(pwd)"
 	},
 	"dependencies": {
@@ -22,6 +26,7 @@
 	"devDependencies": {
 		"@types/node": "20.14.5",
 		"@types/vscode": "1.90.0",
+		"npm-watch": "0.13.0",
 		"typescript": "5.4.5"
 	}
 }

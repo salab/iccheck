@@ -1,0 +1,11 @@
+{
+  "watch": {
+    "compile": {
+      "patterns": ["cmd", "pkg", "plugins"],
+      "extensions": "go,ts"
+    }
+  },
+  "scripts": {
+    "compile": "go build . && cp iccheck ./plugins/vscode && cd ./plugins/vscode && tsc -b"
+  }
+}
