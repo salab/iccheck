@@ -2,6 +2,14 @@ package ds
 
 import "golang.org/x/exp/constraints"
 
+// Limit limits array to given limit length, if the slice is larger than the given limit.
+func Limit[T any, ST ~[]T](arr ST, limit int) ST {
+	if len(arr) <= limit {
+		return arr
+	}
+	return arr[:limit]
+}
+
 func Map[T any, R any, ST ~[]T](arr ST, iteratee func(T) R) []R {
 	ret := make([]R, len(arr))
 	for i, elt := range arr {

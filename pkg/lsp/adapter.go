@@ -7,12 +7,17 @@ import (
 	"github.com/pkg/errors"
 	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/search"
+	"github.com/salab/iccheck/pkg/utils/ds"
+	"github.com/samber/lo"
 	"github.com/sourcegraph/go-lsp"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 )
+
+const analyzeSourceName = "ICCheck"
+const analyzeCodeName = "Consistency check"
 
 func getGitRoot(root string, filename string) ([]string, bool) {
 	path := strings.Split(filename, string(os.PathSeparator))
@@ -27,6 +32,13 @@ func getGitRoot(root string, filename string) ([]string, bool) {
 		}
 	}
 	return nil, false
+}
+
+func toLSPRange(c *domain.Clone, lines []string) lsp.Range {
+	return lsp.Range{
+		Start: lsp.Position{Line: c.StartL - 1, Character: 0},
+		End:   lsp.Position{Line: c.EndL - 1, Character: len(lines[c.EndL-1])},
+	}
 }
 
 func (h *handler) analyzeFile(ctx context.Context, filename string) (diagnostics []lsp.Diagnostic, err error) {
@@ -49,18 +61,42 @@ func (h *handler) analyzeFile(ctx context.Context, filename string) (diagnostics
 	content := h.files[filename]
 	lines := strings.Split(content, "\n")
 	for _, cs := range cloneSets {
+		missingPaths := make(map[string]struct{}, len(cs.Missing))
+
+		// For all missing parts, display warnings
 		for _, c := range cs.Missing {
+			missingPaths[c.Filename] = struct{}{}
 			detectedPath := filepath.Join(append(gitPath, c.Filename)...)
 			if detectedPath == filename {
+				message := fmt.Sprintf("Missing a change? (%d out of %d clones changed)", len(cs.Changed), len(cs.Changed)+len(cs.Missing))
 				diagnostics = append(diagnostics, lsp.Diagnostic{
-					Range: lsp.Range{
-						Start: lsp.Position{Line: c.StartL - 1, Character: 0},
-						End:   lsp.Position{Line: c.EndL - 1, Character: len(lines[c.EndL-1])},
-					},
+					Range:    toLSPRange(c, lines),
 					Severity: lsp.Warning,
-					Code:     "",
-					Source:   "",
-					Message:  "Possibly missing a consistent change",
+					Code:     analyzeCodeName,
+					Source:   analyzeSourceName,
+					Message:  message,
+				})
+			}
+		}
+
+		// Also display warnings to changed lines, if no missing changes are nearby (in the same file)
+		for _, c := range cs.Changed {
+			detectedPath := filepath.Join(append(gitPath, c.Filename)...)
+			_, hasMissingWarning := missingPaths[c.Filename]
+			if detectedPath == filename && !hasMissingWarning {
+				const missingFilepathDisplayLimit = 3
+				missingPathList := lo.Keys(missingPaths)
+				message := fmt.Sprintf(
+					"Missing a change in other files? (%s%s)",
+					strings.Join(ds.Limit(missingPathList, missingFilepathDisplayLimit), ", "),
+					lo.Ternary(len(missingPathList) > missingFilepathDisplayLimit, ", ...", ""),
+				)
+				diagnostics = append(diagnostics, lsp.Diagnostic{
+					Range:    toLSPRange(c, lines),
+					Severity: lsp.Warning,
+					Code:     analyzeCodeName,
+					Source:   analyzeSourceName,
+					Message:  message,
 				})
 			}
 		}
