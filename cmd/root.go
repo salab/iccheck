@@ -14,10 +14,16 @@ import (
 	"os"
 )
 
+var (
+	version  string
+	revision string
+)
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "iccheck",
-	Short: "Finds inconsistent changes in your git changes",
+	Use:     "iccheck",
+	Version: fmt.Sprintf("%s (%s)", version, revision),
+	Short:   "Finds inconsistent changes in your git changes",
 	Long: `Finds inconsistent changes in your git changes.
 
 Specify special values in base or target git ref arguments to compare against some special filesystems.
@@ -85,7 +91,8 @@ Specify special values in base or target git ref arguments to compare against so
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
+func Execute(_version, _revision string) {
+	version, revision = _version, _revision
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)

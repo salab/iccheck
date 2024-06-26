@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+
+project_name: iccheck
+
+before:
+  hooks:
+    - go mod download
+
+builds:
+  - binary: iccheck
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s
+      - -w
+      - -X main.version={{.Version}}
+      - -X main.revision={{.ShortCommit}}
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
