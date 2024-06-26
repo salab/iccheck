@@ -16,8 +16,10 @@
 	],
 	"main": "./out/extension",
 	"scripts": {
-		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -b && cd ../../ && go build . && cp iccheck ./plugins/vscode",
+		"vscode:prepublish": "npm run compile:self",
+		"compile": "npm run compile:self && npm run compile:binary",
+		"compile:self": "tsc -b",
+		"compile:binary": "cd ../../ && go build . && cp iccheck ./plugins/vscode",
 		"watch": "cd ../../ && npm-watch",
 		"dev": "code --extensionDevelopmentPath=$(pwd)"
 	},
