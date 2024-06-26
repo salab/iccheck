@@ -81,10 +81,10 @@ jobs:
       - name: Extract binary
         run: tar -zxvf dist/iccheck_$(cat dist/VERSION)_${{ matrix.binary_name }}.tar.gz
       - name: Place binary (windows)
-        if: startsWith(matrix.binary_name, 'windows')
+        if: "${{ startsWith(matrix.binary_name, 'windows') }}"
         run: mv iccheck.exe ./plugins/vscode/
       - name: Place binary (non-windows)
-        if: !startsWith(matrix.binary_name, 'windows')
+        if: "${{ !startsWith(matrix.binary_name, 'windows') }}"
         run: mv iccheck ./plugins/vscode/
 
       - uses: actions/setup-node@v4
