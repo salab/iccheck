@@ -74,6 +74,8 @@ jobs:
         with:
           name: iccheck
           path: dist
+      - name: Check artifacts
+        run: ls dist
       - name: Extract binary
         shell: pwsh
         run: tar -zxvf dist/iccheck_*_${{ matrix.binary_name }}.tar.gz
