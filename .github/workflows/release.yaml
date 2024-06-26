@@ -24,8 +24,8 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set IMAGE_TAG env
-        run: echo -n "IMAGE_TAG=$(echo ${GITHUB_REF:11})" > dist/VERSION
+      - name: Write VERSION file
+        run: echo -n "${GITHUB_REF:11}" > dist/VERSION
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
