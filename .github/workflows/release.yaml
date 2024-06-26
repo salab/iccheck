@@ -81,7 +81,7 @@ jobs:
       - name: Extract binary
         run: tar -zxvf dist/iccheck_$(cat dist/VERSION)_${{ matrix.binary_name }}.tar.gz
       - name: Place binary
-        run: mv iccheck ./plugins/vscode/
+        run: mv iccheck ./plugins/vscode/ || mv iccheck.exe ./plugins/vscode/
 
       - uses: actions/setup-node@v4
         with:
