@@ -101,7 +101,7 @@ jobs:
         working-directory: ./plugins/vscode
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.target }}
+          name: "plugin-${{ env.target }}"
           path: "plugins/vscode/*.vsix"
 
   vsce-publish:
@@ -111,7 +111,8 @@ jobs:
     if: success() && startsWith( github.ref, 'refs/tags/')
     steps:
       - uses: actions/download-artifact@v4
+        with:
+          pattern: "plugin-*"
       - run: npx @vscode/vsce publish --packagePath $(find . -iname *.vsix)
-        working-directory: ./plugins/vscode
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
