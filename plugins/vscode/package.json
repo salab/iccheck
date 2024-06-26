@@ -7,6 +7,7 @@
 		"type": "git",
 		"url": "https://github.com/salab/iccheck.git"
 	},
+	"publisher": "motoki317",
 	"engines": {
 		"vscode": "^1.90.0"
 	},
