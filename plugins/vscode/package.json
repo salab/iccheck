@@ -2,7 +2,7 @@
 	"name": "iccheck-client",
 	"description": "ICCheck - Inconsistency Check",
 	"license": "MIT",
-	"version": "0.3.7",
+	"version": "0.3.8",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/salab/iccheck.git"
