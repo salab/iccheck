@@ -54,6 +54,8 @@ func (h *handler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2
 		return h.handleTextDocumentDidChange(ctx, conn, req)
 	case "textDocument/didClose":
 		return h.handleNop(ctx, conn, req)
+	case "textDocument/diagnostic":
+		return h.handleTextDocumentDiagnostic(ctx, conn, req)
 	}
 
 	return nil, &jsonrpc2.Error{
