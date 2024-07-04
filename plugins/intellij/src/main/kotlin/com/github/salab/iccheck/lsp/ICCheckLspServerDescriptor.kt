@@ -6,13 +6,18 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.lsp.api.ProjectWideLspServerDescriptor
+import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.net.HttpURLConnection
 import java.net.URI
-import java.nio.channels.Channels
+import java.nio.file.Files
+import java.nio.file.attribute.PosixFilePermission
+
+const val version = "0.3.3" // TODO: refer to config or property?
 
 class ICCheckLspServerDescriptor(project: Project) : ProjectWideLspServerDescriptor(project, "ICCheck") {
-    private val LOG = Logger.getInstance(ICCheckLspServerDescriptor::class.java)
+    private val logger = Logger.getInstance(ICCheckLspServerDescriptor::class.java)
 
     override fun isSupportedFile(file: VirtualFile): Boolean {
         return true
@@ -38,9 +43,7 @@ class ICCheckLspServerDescriptor(project: Project) : ProjectWideLspServerDescrip
     }
 
     private fun getDownloadLink(): String {
-        val base = "https://github.com/salab/iccheck/releases/download/%s/iccheck_%s_%s_%s"
-
-        val version = "0.3.2" // TODO: refer to config or property?
+        val base = "https://github.com/salab/iccheck/releases/download/v%s/iccheck_%s_%s_%s"
 
         val osType = OsCheck.operatingSystemType
         val dlOSName = when (osType) {
@@ -50,7 +53,11 @@ class ICCheckLspServerDescriptor(project: Project) : ProjectWideLspServerDescrip
             else -> throw Exception("OS not supported")
         }
 
-        val dlArchName = System.getProperty("os.arch")
+        val dlArchName = when (val archName = System.getProperty("os.arch")) {
+            "amd64" -> "amd64"
+            "aarch64" -> "arm64"
+            else -> throw Exception("arch name %s not supported".format(archName))
+        }
 
         var url = base.format(version, version, dlOSName, dlArchName)
         if (osType == OsCheck.OSType.Windows) {
@@ -59,34 +66,54 @@ class ICCheckLspServerDescriptor(project: Project) : ProjectWideLspServerDescrip
         return url
     }
 
-    private fun downloadBinary(url: String, output: String) {
-        LOG.info("Downloading ICCheck LSP binary from link %s to %s ...".format(url, output))
+    private fun downloadFile(url: String, output: String) {
+        logger.info("Downloading ICCheck LSP binary from link %s to %s ...".format(url, output))
 
-        URI(url).toURL().openStream().use { urlSt ->
-            Channels.newChannel(urlSt).use { ch ->
+        val httpConn = URI(url).toURL().openConnection() as HttpURLConnection
+
+        httpConn.inputStream.use { inSt ->
+            BufferedInputStream(inSt).use { bufInSt ->
                 FileOutputStream(output).use { outSt ->
-                    val fileCh = outSt.channel
-                    fileCh.transferFrom(ch, 0, Long.MAX_VALUE)
+                    val buffer = ByteArray(4096)
+                    var bytesRead: Int
+                    while ((bufInSt.read(buffer).also { bytesRead = it }) != -1) {
+                        outSt.write(buffer, 0, bytesRead)
+                    }
                 }
             }
         }
+
+        httpConn.disconnect()
+    }
+
+    private fun applyExecutePermission(file: String) {
+        val perms = HashSet<PosixFilePermission>()
+        perms.add(PosixFilePermission.OWNER_READ)
+        perms.add(PosixFilePermission.OWNER_WRITE)
+        perms.add(PosixFilePermission.OWNER_EXECUTE)
+        Files.setPosixFilePermissions(File(file).toPath(), perms)
     }
 
     override fun createCommandLine(): GeneralCommandLine {
-        // Check PATH
+        val basePath = project.basePath
+
+        // Check PATH (local dev)
         if (findExecutableOnPath("iccheck")) {
-            return GeneralCommandLine("iccheck", "lsp")
+            return GeneralCommandLine("iccheck", "lsp").withWorkDirectory(basePath)
         }
 
-        // Check pwd
-        if (findExecutableOnWorkdir("iccheck")) {
-            return GeneralCommandLine("./iccheck", "lsp")
+        // Previously downloaded binaries
+        if (findExecutableOnWorkdir("iccheck-%s".format(version))) {
+            return GeneralCommandLine("./iccheck-%s".format(version), "lsp").withWorkDirectory(basePath)
         }
 
         // Download from GitHub release
         val url = getDownloadLink()
         val workdir = System.getProperty("user.dir")
-        downloadBinary(url, File(workdir, "iccheck").absolutePath)
-        return GeneralCommandLine("./iccheck", "lsp")
+        val dlPath = File(workdir, "iccheck-%s".format(version)).absolutePath
+        downloadFile(url, dlPath)
+        applyExecutePermission(dlPath)
+
+        return GeneralCommandLine("./iccheck-%s".format(version), "lsp").withWorkDirectory(basePath)
     }
 }

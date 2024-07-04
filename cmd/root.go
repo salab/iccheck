@@ -8,21 +8,17 @@ import (
 	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/printer"
 	"github.com/salab/iccheck/pkg/search"
+	"github.com/salab/iccheck/pkg/utils/cli"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"log/slog"
 	"os"
 )
 
-var (
-	version  string
-	revision string
-)
-
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:     "iccheck",
-	Version: fmt.Sprintf("%s (%s)", version, revision),
+	Version: cli.GetFormattedVersion(),
 	Short:   "Finds inconsistent changes in your git changes",
 	Long: `Finds inconsistent changes in your git changes.
 
@@ -91,8 +87,7 @@ Specify special values in base or target git ref arguments to compare against so
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute(_version, _revision string) {
-	version, revision = _version, _revision
+func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)

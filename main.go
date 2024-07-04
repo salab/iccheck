@@ -1,6 +1,9 @@
 package main
 
-import "github.com/salab/iccheck/cmd"
+import (
+	"github.com/salab/iccheck/cmd"
+	"github.com/salab/iccheck/pkg/utils/cli"
+)
 
 var (
 	version  = "dev"
@@ -8,5 +11,6 @@ var (
 )
 
 func main() {
-	cmd.Execute(version, revision)
+	cli.SetVersion(version, revision)
+	cmd.Execute()
 }
