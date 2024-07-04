@@ -1,3 +1,6 @@
-# ICCheck VSCode Plugin Example
+# ICCheck Extension for VSCode
 
-Code is copied and modified from https://github.com/microsoft/vscode-extension-samples/tree/main/lsp-sample.
+Repository: https://github.com/salab/iccheck
+
+Extension template code is copied and modified from
+https://github.com/microsoft/vscode-extension-samples/tree/main/lsp-sample.
