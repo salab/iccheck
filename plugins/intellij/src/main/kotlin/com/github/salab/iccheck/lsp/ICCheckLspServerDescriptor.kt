@@ -38,7 +38,7 @@ class ICCheckLspServerDescriptor(project: Project) : ProjectWideLspServerDescrip
     }
 
     private fun getDownloadLink(): String {
-        val base = "https://github.com/salab/iccheck/releases/download/%s/iccheck_%s_%s_%s.tar.gz"
+        val base = "https://github.com/salab/iccheck/releases/download/%s/iccheck_%s_%s_%s"
 
         val version = "0.3.2" // TODO: refer to config or property?
 
@@ -52,7 +52,11 @@ class ICCheckLspServerDescriptor(project: Project) : ProjectWideLspServerDescrip
 
         val dlArchName = System.getProperty("os.arch")
 
-        return base.format(version, version, dlOSName, dlArchName)
+        var url = base.format(version, version, dlOSName, dlArchName)
+        if (osType == OsCheck.OSType.Windows) {
+            url += ".exe"
+        }
+        return url
     }
 
     private fun downloadBinary(url: String, output: String) {
