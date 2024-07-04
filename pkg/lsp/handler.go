@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
+	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -14,6 +16,11 @@ const fileURIPrefix = "file://"
 func (h *handler) trimFilePrefix(uri lsp.DocumentURI) string {
 	fullPath := strings.TrimPrefix(string(uri), fileURIPrefix)
 	return strings.TrimPrefix(fullPath, h.rootPath+string(os.PathSeparator))
+}
+
+func (h *handler) appendFilePrefix(relPathInProject string) lsp.DocumentURI {
+	fullPath := filepath.Join(h.rootPath, relPathInProject)
+	return lsp.DocumentURI(fileURIPrefix + fullPath)
 }
 
 func (h *handler) handleNop(_ context.Context, _ *jsonrpc2.Conn, _ *jsonrpc2.Request) (any, error) {
@@ -51,10 +58,6 @@ func (h *handler) handleInitialize(_ context.Context, _ *jsonrpc2.Conn, req *jso
 				OpenClose: true,
 				Change:    lsp.TDSKFull,
 			},
-			DiagnosticProvider: diagnosticProvider{
-				InterFileDependencies: true,
-				WorkspaceDiagnostics:  false,
-			},
 		},
 	}, nil
 }
@@ -68,7 +71,12 @@ func (h *handler) handleTextDocumentDidOpen(_ context.Context, _ *jsonrpc2.Conn,
 		return nil, err
 	}
 
-	h.files[h.trimFilePrefix(params.TextDocument.URI)] = params.TextDocument.Text
+	filePath := h.trimFilePrefix(params.TextDocument.URI)
+	h.openFiles[filePath] = params.TextDocument.Text
+	h.filesCache.Forget(filePath)
+
+	// Update calculation cache
+	h.notifyAnalysisForPath(filePath)
 
 	return nil, nil
 }
@@ -82,14 +90,12 @@ func (h *handler) handleTextDocumentDidChange(_ context.Context, _ *jsonrpc2.Con
 		return nil, err
 	}
 
-	filename := h.trimFilePrefix(params.TextDocument.URI)
-	h.files[filename] = params.ContentChanges[0].Text
+	filePath := h.trimFilePrefix(params.TextDocument.URI)
+	h.openFiles[filePath] = params.ContentChanges[0].Text
+	h.filesCache.Forget(filePath)
 
 	// Update calculation cache
-	gitPath, ok := getGitRoot(h.rootPath, filename)
-	if ok {
-		h.calcCache.Forget(strings.Join(gitPath, string(os.PathSeparator)))
-	}
+	h.notifyAnalysisForPath(filePath)
 
 	return nil, nil
 }
@@ -103,37 +109,23 @@ func (h *handler) handleTextDocumentDidClose(_ context.Context, _ *jsonrpc2.Conn
 		return nil, err
 	}
 
-	delete(h.files, h.trimFilePrefix(params.TextDocument.URI))
+	filePath := h.trimFilePrefix(params.TextDocument.URI)
+	delete(h.openFiles, filePath)
+	h.filesCache.Forget(filePath)
 
 	return nil, nil
 }
 
-type textDocumentDiagnosticParams struct {
-	TextDocument struct {
-		URI string `json:"uri"`
-	} `json:"textDocument"`
-}
-
-type textDocumentDiagnosticReport struct {
-	Kind  string           `json:"kind"`
-	Items []lsp.Diagnostic `json:"items"`
-}
-
-func (h *handler) handleTextDocumentDiagnostic(ctx context.Context, _ *jsonrpc2.Conn, req *jsonrpc2.Request) (any, error) {
-	if req.Params == nil {
-		return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+func (h *handler) notifyAnalysisForPath(filePath string) {
+	gitPath, ok := getGitRoot(h.rootPath, filePath)
+	if ok {
+		gitFullPath := strings.Join(gitPath, string(os.PathSeparator))
+		h.analyzeCache.Forget(gitFullPath)
+		go func() {
+			_, err := h.analyzeCache.Get(context.Background(), gitFullPath)
+			if err != nil {
+				slog.Warn("failed to analyze path", "path", gitFullPath, "error", err)
+			}
+		}()
 	}
-	var params textDocumentDiagnosticParams
-	if err := json.Unmarshal(*req.Params, &params); err != nil {
-		return nil, err
-	}
-
-	items, err := h.analyzeFile(ctx, h.trimFilePrefix(lsp.DocumentURI(params.TextDocument.URI)))
-	if err != nil {
-		return nil, err
-	}
-	return textDocumentDiagnosticReport{
-		Kind:  "full",
-		Items: items,
-	}, nil
 }

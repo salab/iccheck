@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/motoki317/sc"
-	"github.com/salab/iccheck/pkg/domain"
+	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/sourcegraph/jsonrpc2"
 	"log/slog"
 	"time"
@@ -15,17 +15,21 @@ import (
 type handler struct {
 	conn *jsonrpc2.Conn
 
-	calcCache *sc.Cache[string, []*domain.CloneSet]
+	filesCache          *sc.Cache[string, []string]
+	analyzeCache        *sc.Cache[string, struct{}]
+	previousDiagnostics ds.SyncMap[string, []string]
+
 	rootPath  string
-	files     map[string]string
+	openFiles map[string]string
 }
 
 func NewHandler() jsonrpc2.Handler {
 	h := &handler{
-		files: make(map[string]string),
+		openFiles: make(map[string]string),
 	}
 	// Dedupe calls to clone set calculation
-	h.calcCache = sc.NewMust(h.getCloneSets, time.Hour, time.Hour, sc.EnableStrictCoalescing())
+	h.filesCache = sc.NewMust(h.readFile, time.Minute, time.Minute, sc.EnableStrictCoalescing())
+	h.analyzeCache = sc.NewMust(h.analyzePath, time.Hour, time.Hour, sc.EnableStrictCoalescing())
 	return jsonrpc2.HandlerWithError(h.handle)
 }
 
@@ -34,9 +38,9 @@ func (h *handler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2
 		h.conn = conn
 	}
 
-	slog.Info(fmt.Sprintf("handle(): method: %v\n", req.Method))
+	slog.Debug(fmt.Sprintf("handle(): method: %v\n", req.Method))
 	if req.Params != nil {
-		slog.Info(fmt.Sprintf("handle(): params: %v\n", string(*req.Params)))
+		slog.Debug(fmt.Sprintf("handle(): params: %v\n", string(*req.Params)))
 	}
 
 	switch req.Method {
@@ -50,8 +54,6 @@ func (h *handler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2
 		return h.handleTextDocumentDidChange(ctx, conn, req)
 	case "textDocument/didClose":
 		return h.handleNop(ctx, conn, req)
-	case "textDocument/diagnostic":
-		return h.handleTextDocumentDiagnostic(ctx, conn, req)
 	}
 
 	return nil, &jsonrpc2.Error{

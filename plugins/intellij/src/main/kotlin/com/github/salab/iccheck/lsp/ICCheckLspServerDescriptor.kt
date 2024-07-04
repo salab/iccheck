@@ -33,13 +33,9 @@ class ICCheckLspServerDescriptor(project: Project) : ProjectWideLspServerDescrip
         return false
     }
 
-    private fun findExecutableOnWorkdir(name: String): Boolean {
-        val workdir = System.getProperty("user.dir")
-        val file = File(workdir, name)
-        if (file.isFile() && file.canExecute()) {
-            return true
-        }
-        return false
+    private fun findExecutable(fullPath: String): Boolean {
+        val file = File(fullPath)
+        return file.isFile() && file.canExecute()
     }
 
     private fun getDownloadLink(): String {
@@ -99,21 +95,23 @@ class ICCheckLspServerDescriptor(project: Project) : ProjectWideLspServerDescrip
 
         // Check PATH (local dev)
         if (findExecutableOnPath("iccheck")) {
+            LOG.info("Selecting LSP binary on PATH")
             return GeneralCommandLine("iccheck", "lsp").withWorkDirectory(basePath)
         }
 
         // Previously downloaded binaries
-        if (findExecutableOnWorkdir("iccheck-%s".format(version))) {
-            return GeneralCommandLine("./iccheck-%s".format(version), "lsp").withWorkDirectory(basePath)
+        val workdir = System.getProperty("user.dir")
+        val dlPath = File(workdir, "iccheck-%s".format(version)).absolutePath
+        if (findExecutable(dlPath)) {
+            LOG.info("Selecting LSP binary from previously downloaded file")
+            return GeneralCommandLine(dlPath, "lsp").withWorkDirectory(basePath)
         }
 
         // Download from GitHub release
         val url = getDownloadLink()
-        val workdir = System.getProperty("user.dir")
-        val dlPath = File(workdir, "iccheck-%s".format(version)).absolutePath
         downloadFile(url, dlPath)
         applyExecutePermission(dlPath)
 
-        return GeneralCommandLine("./iccheck-%s".format(version), "lsp").withWorkDirectory(basePath)
+        return GeneralCommandLine(dlPath, "lsp").withWorkDirectory(basePath)
     }
 }
