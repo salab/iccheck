@@ -95,7 +95,7 @@ class ICCheckLspServerDescriptor(project: Project) : ProjectWideLspServerDescrip
 
         // Check PATH (local dev)
         if (findExecutableOnPath("iccheck")) {
-            LOG.info("Selecting LSP binary on PATH")
+            logger.info("Selecting LSP binary on PATH")
             return GeneralCommandLine("iccheck", "lsp").withWorkDirectory(basePath)
         }
 
@@ -103,7 +103,7 @@ class ICCheckLspServerDescriptor(project: Project) : ProjectWideLspServerDescrip
         val workdir = System.getProperty("user.dir")
         val dlPath = File(workdir, "iccheck-%s".format(version)).absolutePath
         if (findExecutable(dlPath)) {
-            LOG.info("Selecting LSP binary from previously downloaded file")
+            logger.info("Selecting LSP binary from previously downloaded file")
             return GeneralCommandLine(dlPath, "lsp").withWorkDirectory(basePath)
         }
 
