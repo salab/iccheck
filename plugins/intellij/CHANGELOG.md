@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [0.3.9] - 2024-07-10
+
+- 71fc4b8 0.3.9
+- 062ddfa Add short description of the plugins
+- 232da9c Merge pull request #2 from salab/intellij-changelog-update-0.3.8
+- 57066ad IntelliJ Changelog Update - 0.3.8
+
 ## [0.3.8] - 2024-07-04
 
 - a8b28f4 v0.3.8
@@ -21,7 +28,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.3.8...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.3.9...HEAD
+[0.3.9]: https://github.com/salab/iccheck/compare/v0.3.8...v0.3.9
 [0.3.8]: https://github.com/salab/iccheck/compare/v0.3.7...v0.3.8
 [0.3.7]: https://github.com/salab/iccheck/compare/v0.3.3...v0.3.7
 [0.3.3]: https://github.com/salab/iccheck/commits
