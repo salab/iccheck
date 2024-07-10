@@ -1,6 +1,6 @@
 {
-	"name": "iccheck-client",
-	"description": "ICCheck - Inconsistency Check",
+	"name": "iccheck",
+	"description": "Reports possible inconsistent changes in pre-commit files.",
 	"license": "MIT",
 	"version": "0.3.8",
 	"repository": {
