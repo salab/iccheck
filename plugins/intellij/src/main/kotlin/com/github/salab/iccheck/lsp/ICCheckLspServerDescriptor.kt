@@ -14,7 +14,7 @@ import java.net.URI
 import java.nio.file.Files
 import java.nio.file.attribute.PosixFilePermission
 
-const val version = "0.3.9" // TODO: refer to config or property?
+const val version = "0.3.10" // TODO: refer to config or property?
 
 class ICCheckLspServerDescriptor(project: Project) : ProjectWideLspServerDescriptor(project, "ICCheck") {
     private val logger = Logger.getInstance(ICCheckLspServerDescriptor::class.java)
