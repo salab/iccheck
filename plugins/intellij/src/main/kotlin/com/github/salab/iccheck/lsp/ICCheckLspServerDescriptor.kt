@@ -4,6 +4,7 @@ import com.github.salab.iccheck.utils.OsCheck
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.io.FileUtilRt
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.lsp.api.ProjectWideLspServerDescriptor
 import java.io.BufferedInputStream
@@ -15,6 +16,9 @@ import java.nio.file.Files
 import java.nio.file.attribute.PosixFilePermission
 
 const val version = "0.3.10" // TODO: refer to config or property?
+
+val tmpFile = FileUtilRt.createTempFile("iccheck-%s".format(version), "")
+val dlPath: String = tmpFile.absolutePath
 
 class ICCheckLspServerDescriptor(project: Project) : ProjectWideLspServerDescriptor(project, "ICCheck") {
     private val logger = Logger.getInstance(ICCheckLspServerDescriptor::class.java)
@@ -105,8 +109,6 @@ class ICCheckLspServerDescriptor(project: Project) : ProjectWideLspServerDescrip
         }
 
         // Previously downloaded binaries
-        val workdir = System.getProperty("user.dir")
-        val dlPath = File(workdir, "iccheck-%s".format(version)).absolutePath
         if (findExecutable(dlPath)) {
             logger.info("Selecting LSP binary from previously downloaded file")
             return GeneralCommandLine(dlPath, "lsp").withWorkDirectory(basePath)
