@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [0.3.10] - 2024-07-11
+
+- ec69eb2 v0.3.10
+- b1b88e3 fix(intellij-plugin): add missing arch switches
+- 435cd49 Merge pull request #3 from salab/intellij-changelog-update-0.3.9
+- 1ef490c IntelliJ Changelog Update - 0.3.9
+
 ## [0.3.9] - 2024-07-10
 
 - 71fc4b8 0.3.9
@@ -28,7 +35,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.3.9...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.3.10...HEAD
+[0.3.10]: https://github.com/salab/iccheck/compare/v0.3.9...v0.3.10
 [0.3.9]: https://github.com/salab/iccheck/compare/v0.3.8...v0.3.9
 [0.3.8]: https://github.com/salab/iccheck/compare/v0.3.7...v0.3.8
 [0.3.7]: https://github.com/salab/iccheck/compare/v0.3.3...v0.3.7
