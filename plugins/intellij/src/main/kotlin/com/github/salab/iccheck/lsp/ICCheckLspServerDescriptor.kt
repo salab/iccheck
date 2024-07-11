@@ -50,9 +50,14 @@ class ICCheckLspServerDescriptor(project: Project) : ProjectWideLspServerDescrip
         }
 
         val dlArchName = when (val archName = System.getProperty("os.arch")) {
-            "amd64" -> "amd64"
-            "aarch64" -> "arm64"
-            else -> throw Exception("arch name %s not supported".format(archName))
+            "amd64", "x64", "x86_64" -> "amd64"
+            "arm64", "aarch64" -> "arm64"
+            else -> {
+                if (archName.startsWith("arm64")) {
+                    return "arm64"
+                }
+                throw Exception("arch name %s not supported".format(archName))
+            }
         }
 
         var url = base.format(version, version, dlOSName, dlArchName)
