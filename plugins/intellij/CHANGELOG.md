@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [0.3.11] - 2024-07-11
+
+- f18de46 v0.3.11
+- 17949e3 fix(intellij-plugin): download location was invalid on some platforms
+- b50c0f1 Merge pull request #4 from salab/intellij-changelog-update-0.3.10
+- 0dd1f85 IntelliJ Changelog Update - 0.3.10
+
 ## [0.3.10] - 2024-07-11
 
 - ec69eb2 v0.3.10
@@ -35,7 +42,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.3.10...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.3.11...HEAD
+[0.3.11]: https://github.com/salab/iccheck/compare/v0.3.10...v0.3.11
 [0.3.10]: https://github.com/salab/iccheck/compare/v0.3.9...v0.3.10
 [0.3.9]: https://github.com/salab/iccheck/compare/v0.3.8...v0.3.9
 [0.3.8]: https://github.com/salab/iccheck/compare/v0.3.7...v0.3.8
