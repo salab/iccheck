@@ -11,10 +11,9 @@ import (
 )
 
 var lspCmd = &cobra.Command{
-	Use:           "lsp",
-	Short:         "Starts ICCheck Language Server",
-	SilenceUsage:  true,
-	SilenceErrors: true,
+	Use:          "lsp",
+	Short:        "Starts ICCheck Language Server",
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Code is partially copied from https://github.com/vito/bass/blob/main/cmd/bass/lsp.go
 		ctx := context.Background()

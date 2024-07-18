@@ -24,8 +24,7 @@ var rootCmd = &cobra.Command{
 
 Specify special values in base or target git ref arguments to compare against some special filesystems.
   "WORKTREE" : Compare against the current worktree.`,
-	SilenceUsage:  true,
-	SilenceErrors: true,
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		switch logLevel {
 		case "debug":
