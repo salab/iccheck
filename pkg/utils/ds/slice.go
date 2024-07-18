@@ -2,6 +2,12 @@ package ds
 
 import "golang.org/x/exp/constraints"
 
+func Copy[T any, ST ~[]T](arr ST) ST {
+	res := make(ST, len(arr))
+	copy(res, arr)
+	return res
+}
+
 // Limit limits array to given limit length, if the slice is larger than the given limit.
 func Limit[T any, ST ~[]T](arr ST, limit int) ST {
 	if len(arr) <= limit {

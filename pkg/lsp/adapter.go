@@ -165,7 +165,10 @@ func (h *handler) getCloneSets(_ context.Context, gitPath string) ([]*domain.Clo
 	if err != nil {
 		return nil, errors.Wrap(err, "resolving worktree")
 	}
-	targetTree := domain.NewGoGitWorktreeWithOverlay(worktree, h.openFiles)
+	targetTree, err := domain.NewGoGitWorktreeWithOverlay(worktree, h.openFiles)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating domain tree")
+	}
 
 	// Calculate
 	cloneSets, err := search.Search(headTree, targetTree)

@@ -125,7 +125,7 @@ func resolveTree(repo *git.Repository, ref string) (domain.Tree, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "retrieving worktree")
 		}
-		return domain.NewGoGitWorkTree(worktree), nil
+		return domain.NewGoGitWorkTree(worktree)
 	}
 
 	// Normal git ref

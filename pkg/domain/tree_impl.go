@@ -3,11 +3,14 @@ package domain
 import (
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/utils/merkletrie"
 	"github.com/go-git/go-git/v5/utils/merkletrie/filesystem"
 	"github.com/go-git/go-git/v5/utils/merkletrie/noder"
 	"github.com/pkg/errors"
+	"github.com/salab/iccheck/pkg/utils/ds"
+	"github.com/samber/lo"
 	"io"
 	"strings"
 	"sync"
@@ -69,14 +72,28 @@ type goGitIndexTree struct{} // TODO?
 type goGitWorktree struct {
 	worktree *git.Worktree
 	fs       billy.Filesystem
+
+	ignoreMatcher gitignore.Matcher
 }
 
-func NewGoGitWorkTree(worktree *git.Worktree) Tree {
-	return &goGitWorktree{worktree: worktree, fs: worktree.Filesystem}
+func newGoGitWorkTree(worktree *git.Worktree, fs billy.Filesystem) (*goGitWorktree, error) {
+	patterns, err := gitignore.ReadPatterns(fs, nil)
+	if err != nil {
+		return nil, err
+	}
+	patterns = append(patterns, worktree.Excludes...)
+	m := gitignore.NewMatcher(patterns)
+
+	return &goGitWorktree{
+		worktree: worktree,
+		fs:       fs,
+
+		ignoreMatcher: m,
+	}, nil
 }
 
-func newGoGitWorkTreeWithFS(worktree *git.Worktree, fs billy.Filesystem) *goGitWorktree {
-	return &goGitWorktree{worktree: worktree, fs: fs}
+func NewGoGitWorkTree(worktree *git.Worktree) (Tree, error) {
+	return newGoGitWorkTree(worktree, worktree.Filesystem)
 }
 
 func (g *goGitWorktree) String() string {
@@ -93,11 +110,15 @@ func (g *goGitWorktree) Noder() (noder.Noder, error) {
 		return nil, errors.Wrap(err, "getting submodules status")
 	}
 	node := filesystem.NewRootNode(g.fs, submodules)
-	return node, nil
+	return &filesystemGitignoreOverlay{
+		ignoreMatcher: g.ignoreMatcher,
+		pathPrefix:    nil,
+		Noder:         node,
+	}, nil
 }
 
 func (g *goGitWorktree) FilterIgnoredChanges(changes merkletrie.Changes) merkletrie.Changes {
-	return excludeIgnoredChanges(g.worktree, changes)
+	return excludeIgnoredChanges(g.ignoreMatcher, changes)
 }
 
 func (g *goGitWorktree) ReadFile(path string) (string, error) {
@@ -114,6 +135,45 @@ func (g *goGitWorktree) ReadFile(path string) (string, error) {
 		return "", errors.Wrapf(err, "closing file %v", path)
 	}
 	return string(content), nil
+}
+
+// filesystemGitignoreOverlay intercepts Children() (and NumChildren()) calls and
+// wraps their return values in order to prevent gitignore-d files and directories
+// from being listed in noder.Noder methods.
+//
+// Preventing gitignore-d files from being listed before being compared allows faster
+// comparison, and prevents unnecessary file accesses from occurring in case
+// there are files that should not be accessed in gitignore-d directories.
+type filesystemGitignoreOverlay struct {
+	ignoreMatcher gitignore.Matcher
+	pathPrefix    []string
+	noder.Noder
+}
+
+func (f *filesystemGitignoreOverlay) Children() ([]noder.Noder, error) {
+	children, err := f.Noder.Children()
+	if err != nil {
+		return nil, err
+	}
+	filtered := lo.Filter(children, func(n noder.Noder, _ int) bool {
+		return !f.ignoreMatcher.Match(append(f.pathPrefix, n.Name()), n.IsDir())
+	})
+	wrapped := ds.Map(filtered, func(n noder.Noder) noder.Noder {
+		return &filesystemGitignoreOverlay{
+			ignoreMatcher: f.ignoreMatcher,
+			pathPrefix:    append(ds.Copy(f.pathPrefix), n.Name()),
+			Noder:         n,
+		}
+	})
+	return wrapped, nil
+}
+
+func (f *filesystemGitignoreOverlay) NumChildren() (int, error) {
+	children, err := f.Children()
+	if err != nil {
+		return 0, err
+	}
+	return len(children), nil
 }
 
 type goGitWorktreeWithOverlay struct {
@@ -155,11 +215,15 @@ func (f *billyInMemoryFile) Close() error {
 	return nil
 }
 
-func NewGoGitWorktreeWithOverlay(worktree *git.Worktree, overlay map[string]string) Tree {
+func NewGoGitWorktreeWithOverlay(worktree *git.Worktree, overlay map[string]string) (Tree, error) {
 	fs := &billyFSOverlay{Filesystem: worktree.Filesystem, overlay: overlay}
-	return &goGitWorktreeWithOverlay{
-		goGitWorktree: newGoGitWorkTreeWithFS(worktree, fs),
+	tree, err := newGoGitWorkTree(worktree, fs)
+	if err != nil {
+		return nil, err
 	}
+	return &goGitWorktreeWithOverlay{
+		goGitWorktree: tree,
+	}, nil
 }
 
 func (g *goGitWorktreeWithOverlay) String() string {

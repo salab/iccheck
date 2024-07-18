@@ -59,20 +59,7 @@ func diffTreeIsEquals(a, b noder.Hasher) bool {
 	return bytes.Equal(hashA, hashB)
 }
 
-func excludeIgnoredChanges(w *git.Worktree, changes merkletrie.Changes) merkletrie.Changes {
-	patterns, err := gitignore.ReadPatterns(w.Filesystem, nil)
-	if err != nil {
-		return changes
-	}
-
-	patterns = append(patterns, w.Excludes...)
-
-	if len(patterns) == 0 {
-		return changes
-	}
-
-	m := gitignore.NewMatcher(patterns)
-
+func excludeIgnoredChanges(m gitignore.Matcher, changes merkletrie.Changes) merkletrie.Changes {
 	var res merkletrie.Changes
 	for _, ch := range changes {
 		var path []string
