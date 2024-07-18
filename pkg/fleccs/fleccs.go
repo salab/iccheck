@@ -84,8 +84,12 @@ func (q *Query) accountForContextLines(c *Candidate) *Candidate {
 
 // disc returns Dice-Sørensen Coefficient.
 func disc(bigram1, bigram2 strs.Set) float64 {
+	totalSetLen := len(bigram1) + len(bigram2)
+	if totalSetLen == 0 {
+		return 0
+	}
 	intersection := strs.IntersectionCount(bigram1, bigram2)
-	return 2 * float64(intersection) / float64(len(bigram1)+len(bigram2))
+	return 2 * float64(intersection) / float64(totalSetLen)
 }
 
 // waDiSC returns Weighted-Average DiSC (Dice-Sørensen Coefficient).
@@ -94,6 +98,9 @@ func waDiSC(lengths1, lengths2 []int, bigrams1, bigrams2 []strs.Set) float64 {
 		return disc(bigram1, bigrams2[idx])
 	})
 	totalLength := lo.Sum(lengths1) + lo.Sum(lengths2)
+	if totalLength == 0 {
+		return 0
+	}
 	weightedDiscs := lo.Map(discs, func(disc float64, idx int) float64 {
 		l1 := lengths1[idx]
 		l2 := lengths2[idx]
