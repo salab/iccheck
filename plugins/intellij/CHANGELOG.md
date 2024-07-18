@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+## [0.3.12] - 2024-07-18
+
+- 6a1ad044ef50b662ea7c453bed36e8332820ef1d v0.3.12
+- c3163e525a5cc9838c928318def818c3ca91a53c Fix: fleccs detection was not working when comparing range containing empty lines
+- a21b7f7dad0c4f6c9a995fdac3dd9fc62db9d4b1 Fix: ignore gitignore-d files/dirs before comparison
+- c340b79e8799e034e025fd731c67b3bf8261b496 Fix: display errors
+- ecad9b466ed30377d94d4a5ac725fa639c3d2b7a Merge pull request #5 from salab/intellij-changelog-update-0.3.11
+- f9f98564e7105c7acbc7debb98ee536e72d2d73f IntelliJ Changelog Update - 0.3.11
+
 ## [0.3.11] - 2024-07-11
 
 - f18de46 v0.3.11
@@ -42,7 +51,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.3.11...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.3.12...HEAD
+[0.3.12]: https://github.com/salab/iccheck/compare/v0.3.11...v0.3.12
 [0.3.11]: https://github.com/salab/iccheck/compare/v0.3.10...v0.3.11
 [0.3.10]: https://github.com/salab/iccheck/compare/v0.3.9...v0.3.10
 [0.3.9]: https://github.com/salab/iccheck/compare/v0.3.8...v0.3.9
