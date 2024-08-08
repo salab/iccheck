@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2024-08-08
+
+- c418d3f51c576709ff0072bc9bd2244269cb4bfe v0.4.0
+- 6905facfccb81f5ea67d784d9d9eb96afe5d9850 fix(vscode): Ensure exec perm on the file
+- 0667dd8ffe71e1c57b51f82a1fc4f973de1c8311 fix(lsp): Fix concurrent map access crash
+- c026655a66dc957914f3dc83e2587bd104ca66ee feat: Add timeout to searching
+- 695a918bc38285d9c785144394605787153772d2 Merge pull request #6 from salab/intellij-changelog-update-0.3.12
+- 2656730321d35abfba6dcac13f0268d63450b769 IntelliJ Changelog Update - 0.3.12
+
 ## [0.3.12] - 2024-07-18
 
 - 6a1ad044ef50b662ea7c453bed36e8332820ef1d v0.3.12
@@ -51,7 +60,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.3.12...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/salab/iccheck/compare/v0.3.12...v0.4.0
 [0.3.12]: https://github.com/salab/iccheck/compare/v0.3.11...v0.3.12
 [0.3.11]: https://github.com/salab/iccheck/compare/v0.3.10...v0.3.11
 [0.3.10]: https://github.com/salab/iccheck/compare/v0.3.9...v0.3.10
