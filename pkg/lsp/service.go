@@ -21,13 +21,13 @@ type handler struct {
 
 	timeout   time.Duration
 	rootPath  string
-	openFiles map[string]string
+	openFiles ds.SyncMap[string, string]
 }
 
 func NewHandler(timeout time.Duration) jsonrpc2.Handler {
 	h := &handler{
 		timeout:   timeout,
-		openFiles: make(map[string]string),
+		openFiles: ds.SyncMap[string, string]{},
 	}
 	// Dedupe calls to clone set calculation
 	h.filesCache = sc.NewMust(h.readFile, time.Minute, time.Minute, sc.EnableStrictCoalescing())

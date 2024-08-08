@@ -39,6 +39,15 @@ func (m *SyncMap[K, V]) Range(f func(key K, value V) bool) {
 	})
 }
 
+func (m *SyncMap[K, V]) Copy() map[K]V {
+	res := make(map[K]V)
+	m.Range(func(key K, value V) bool {
+		res[key] = value
+		return true
+	})
+	return res
+}
+
 func (m *SyncMap[K, V]) Store(key K, value V) {
 	m.m.Store(key, value)
 }

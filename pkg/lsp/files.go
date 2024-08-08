@@ -8,7 +8,7 @@ import (
 )
 
 func (h *handler) readFile(_ context.Context, path string) ([]string, error) {
-	if content, ok := h.openFiles[path]; ok {
+	if content, ok := h.openFiles.Load(path); ok {
 		return strings.Split(content, "\n"), nil
 	}
 

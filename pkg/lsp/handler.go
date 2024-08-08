@@ -72,7 +72,7 @@ func (h *handler) handleTextDocumentDidOpen(_ context.Context, _ *jsonrpc2.Conn,
 	}
 
 	filePath := h.trimFilePrefix(params.TextDocument.URI)
-	h.openFiles[filePath] = params.TextDocument.Text
+	h.openFiles.Store(filePath, params.TextDocument.Text)
 	h.filesCache.Forget(filePath)
 
 	// Update calculation cache
@@ -91,7 +91,7 @@ func (h *handler) handleTextDocumentDidChange(_ context.Context, _ *jsonrpc2.Con
 	}
 
 	filePath := h.trimFilePrefix(params.TextDocument.URI)
-	h.openFiles[filePath] = params.ContentChanges[0].Text
+	h.openFiles.Store(filePath, params.ContentChanges[0].Text)
 	h.filesCache.Forget(filePath)
 
 	// Update calculation cache
@@ -110,7 +110,7 @@ func (h *handler) handleTextDocumentDidClose(_ context.Context, _ *jsonrpc2.Conn
 	}
 
 	filePath := h.trimFilePrefix(params.TextDocument.URI)
-	delete(h.openFiles, filePath)
+	h.openFiles.Delete(filePath)
 	h.filesCache.Forget(filePath)
 
 	return nil, nil
