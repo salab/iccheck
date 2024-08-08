@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"bytes"
+	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/utils/binary"
 	"github.com/go-git/go-git/v5/utils/merkletrie/noder"
 	"github.com/salab/iccheck/pkg/utils/ds"
@@ -43,8 +45,16 @@ func (d *diffTreeSearcher) Files() ([]string, error) {
 	})
 }
 
+func nodeIsSubmodule(node noder.Noder) bool {
+	h := node.Hash()
+	return len(h) == 24 && bytes.Equal(h[20:24], filemode.Submodule.Bytes())
+}
+
 func listFilesFromNoder(node noder.Noder, path []string) ([]string, error) {
 	if !node.IsDir() {
+		if nodeIsSubmodule(node) {
+			return nil, nil // Skip detection of submodule entirely, for now
+		}
 		return []string{strings.Join(append(path, node.Name()), string(os.PathSeparator))}, nil
 	}
 
