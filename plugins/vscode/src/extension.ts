@@ -20,9 +20,21 @@ const getBinaryPath = (context: ExtensionContext): string => {
 	throw new Error('ICCheck binary not found, perhaps an extension release misconfiguration? Please contact the extension developer.')
 }
 
+const ensureExecPerm = (path: string) => {
+	try {
+		fs.accessSync(path, fs.constants.X_OK)
+		return
+	} catch (_) {
+		fs.chmodSync(path, 0o755)
+	}
+}
+
 export function activate(context: ExtensionContext) {
+	const binaryPath = getBinaryPath(context)
+	ensureExecPerm(binaryPath)
+
 	const serverOptions: ServerOptions = {
-		command: getBinaryPath(context),
+		command: binaryPath,
 		args: ['lsp']
 	};
 
