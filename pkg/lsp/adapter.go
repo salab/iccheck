@@ -141,7 +141,10 @@ func (h *handler) analyzePath(ctx context.Context, gitPath string) (struct{}, er
 	return struct{}{}, nil
 }
 
-func (h *handler) getCloneSets(_ context.Context, gitPath string) ([]*domain.CloneSet, error) {
+func (h *handler) getCloneSets(ctx context.Context, gitPath string) ([]*domain.CloneSet, error) {
+	ctx, cancel := context.WithTimeout(ctx, h.timeout)
+	defer cancel()
+
 	// Open repository
 	gitFullPath := filepath.Join(append([]string{h.rootPath}, gitPath)...)
 	repo, err := git.PlainOpen(gitFullPath)
@@ -171,7 +174,7 @@ func (h *handler) getCloneSets(_ context.Context, gitPath string) ([]*domain.Clo
 	}
 
 	// Calculate
-	cloneSets, err := search.Search(headTree, targetTree)
+	cloneSets, err := search.Search(ctx, headTree, targetTree)
 	if err != nil {
 		return nil, err
 	}

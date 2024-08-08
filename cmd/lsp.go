@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"net"
 	"os"
+	"time"
 )
 
 var lspCmd = &cobra.Command{
@@ -21,11 +22,19 @@ var lspCmd = &cobra.Command{
 		conn := jsonrpc2.NewConn(
 			ctx,
 			jsonrpc2.NewBufferedStream(stdRWC{}, jsonrpc2.VSCodeObjectCodec{}),
-			lsp.NewHandler(),
+			lsp.NewHandler(time.Duration(lspTimeoutSeconds)*time.Second),
 		)
 		<-conn.DisconnectNotify()
 		return nil
 	},
+}
+
+var (
+	lspTimeoutSeconds int
+)
+
+func init() {
+	lspCmd.Flags().IntVar(&lspTimeoutSeconds, "timeout-seconds", 15, "Timeout for detecting clones in seconds (default: 15)")
 }
 
 type stdRWC struct{}

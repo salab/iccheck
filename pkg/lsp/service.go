@@ -19,12 +19,14 @@ type handler struct {
 	analyzeCache        *sc.Cache[string, struct{}]
 	previousDiagnostics ds.SyncMap[string, []string]
 
+	timeout   time.Duration
 	rootPath  string
 	openFiles map[string]string
 }
 
-func NewHandler() jsonrpc2.Handler {
+func NewHandler(timeout time.Duration) jsonrpc2.Handler {
 	h := &handler{
+		timeout:   timeout,
 		openFiles: make(map[string]string),
 	}
 	// Dedupe calls to clone set calculation

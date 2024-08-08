@@ -1,6 +1,7 @@
 package search
 
 import (
+	"context"
 	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/fleccs"
 	"path/filepath"
@@ -50,6 +51,7 @@ func ncdSearchReImpl(
 }
 
 func fleccsSearchMulti(
+	ctx context.Context,
 	sourceTree domain.Searcher,
 	sources []*domain.Source,
 	searchTree domain.Searcher,
@@ -63,6 +65,7 @@ func fleccsSearchMulti(
 	})
 
 	candidates, err := fleccs.Search(
+		ctx,
 		sourceTree,
 		queries,
 		searchTree,

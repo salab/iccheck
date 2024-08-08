@@ -6,6 +6,7 @@
 package fleccs
 
 import (
+	"context"
 	"github.com/pkg/errors"
 	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/utils/ds"
@@ -146,7 +147,17 @@ func findCandidates(
 	return candidates
 }
 
-func fileSearch(queries []*Query, searchTree domain.Searcher, searchFilename string, similarityThreshold float64) ([]*Candidate, error) {
+func fileSearch(
+	ctx context.Context,
+	queries []*Query,
+	searchTree domain.Searcher,
+	searchFilename string,
+	similarityThreshold float64,
+) ([]*Candidate, error) {
+	if ctx.Err() != nil { // check for deadline
+		return nil, ctx.Err()
+	}
+
 	searchFile, err := searchTree.Open(searchFilename)
 	if err != nil {
 		return nil, errors.Wrapf(err, "opening search target file %v", searchFilename)
@@ -175,6 +186,9 @@ func fileSearch(queries []*Query, searchTree domain.Searcher, searchFilename str
 	var candidates []*Candidate
 	// For each query, extract candidates
 	for _, q := range queries {
+		if ctx.Err() != nil { // check for deadline
+			return nil, ctx.Err()
+		}
 		qCandidates := findCandidates(q, searchFilename, fileLineLengths, fileLineBigrams, similarityThreshold)
 		// Fix found candidate lines not to include the enlarged context lines
 		qCandidates = ds.Map(qCandidates, func(c *Candidate) *Candidate { return q.accountForContextLines(c) })
@@ -185,6 +199,7 @@ func fileSearch(queries []*Query, searchTree domain.Searcher, searchFilename str
 }
 
 func Search(
+	ctx context.Context,
 	queriesTree domain.Searcher,
 	queries []*Query,
 	searchTree domain.Searcher,
@@ -208,10 +223,15 @@ func Search(
 	}
 
 	// Search for co-change candidates!
-	p := pool.NewWithResults[[]*Candidate]().WithMaxGoroutines(runtime.NumCPU()).WithErrors()
+	p := pool.NewWithResults[[]*Candidate]().
+		WithMaxGoroutines(runtime.NumCPU()).
+		WithErrors().
+		WithContext(ctx).
+		WithCancelOnError().
+		WithFirstError()
 	for _, searchFile := range searchFiles {
-		p.Go(func() ([]*Candidate, error) {
-			return fileSearch(queries, searchTree, searchFile, c.similarityThreshold)
+		p.Go(func(ctx context.Context) ([]*Candidate, error) {
+			return fileSearch(ctx, queries, searchTree, searchFile, c.similarityThreshold)
 		})
 	}
 	candidates, err := p.Wait()

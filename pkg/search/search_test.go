@@ -1,6 +1,7 @@
 package search
 
 import (
+	"context"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/pkg/errors"
@@ -32,7 +33,7 @@ func TestSearch(t *testing.T) {
 	toTree := lo.Must(resolveTree(repo, toRef))
 
 	// Search
-	_, err := Search(fromTree, toTree)
+	_, err := Search(context.Background(), fromTree, toTree)
 	if err != nil {
 		t.Error(err)
 	}

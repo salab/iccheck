@@ -1,6 +1,7 @@
 package search
 
 import (
+	"context"
 	"fmt"
 	"github.com/go-git/go-git/v5/plumbing/format/diff"
 	"github.com/pkg/errors"
@@ -212,7 +213,7 @@ func filterMissingChanges(cloneSets [][]*domain.Clone, actualPatches []*chunk) [
 	})
 }
 
-func Search(fromTree, toTree domain.Tree) ([]*domain.CloneSet, error) {
+func Search(ctx context.Context, fromTree, toTree domain.Tree) ([]*domain.CloneSet, error) {
 	// Compare the trees
 	filePatches, err := domain.DiffTrees(fromTree, toTree)
 	if err != nil {
@@ -322,7 +323,7 @@ func Search(fromTree, toTree domain.Tree) ([]*domain.CloneSet, error) {
 
 	// Search for clones including the diff, in each snapshot
 	slog.Info(fmt.Sprintf("Searching for clones corresponding to %d chunks...", len(queries)))
-	fromClones, err := fleccsSearchMulti(fromSearcher, queries, fromSearcher)
+	fromClones, err := fleccsSearchMulti(ctx, fromSearcher, queries, fromSearcher)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching for clones")
 	}

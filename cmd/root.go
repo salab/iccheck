@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -13,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"log/slog"
 	"os"
+	"time"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -26,6 +28,9 @@ Specify special values in base or target git ref arguments to compare against so
   "WORKTREE" : Compare against the current worktree.`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(timeoutSeconds))
+		defer cancel()
+
 		switch logLevel {
 		case "debug":
 			slog.SetLogLoggerLevel(slog.LevelDebug)
@@ -57,7 +62,7 @@ Specify special values in base or target git ref arguments to compare against so
 		slog.Info("Searching for inconsistent changes...", "repository", repoDir, "from", fromRef, "to", toRef)
 		slog.Info(fmt.Sprintf("Base ref: %v", fromTree.String()))
 		slog.Info(fmt.Sprintf("Target ref: %v", toTree.String()))
-		cloneSets, err := search.Search(fromTree, toTree)
+		cloneSets, err := search.Search(ctx, fromTree, toTree)
 		if err != nil {
 			return err
 		}
@@ -98,9 +103,10 @@ var (
 	fromRef string
 	toRef   string
 
-	logLevel   string
-	formatType string
-	failCode   int
+	logLevel       string
+	formatType     string
+	failCode       int
+	timeoutSeconds int
 )
 
 func init() {
@@ -111,6 +117,7 @@ func init() {
 	rootCmd.Flags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 	rootCmd.Flags().StringVar(&formatType, "format", "console", "Format type (console, json, github)")
 	rootCmd.Flags().IntVar(&failCode, "fail-code", 0, "Exit code if it detects any inconsistent changes (default: 0)")
+	rootCmd.Flags().IntVar(&timeoutSeconds, "timeout-seconds", 15, "Timeout for detecting clones in seconds (default: 15)")
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.AddCommand(lspCmd)
