@@ -15,7 +15,7 @@ import java.net.URI
 import java.nio.file.Files
 import java.nio.file.attribute.PosixFilePermission
 
-const val version = "0.4.0" // TODO: refer to config or property?
+const val version = "0.4.1" // TODO: refer to config or property?
 
 val tmpFile = FileUtilRt.createTempFile("iccheck-%s".format(version), "")
 val dlPath: String = tmpFile.absolutePath
