@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2024-08-14
+
+- b5025a042c6046e04a8843e3db837c5afa450e34 v0.4.1
+- dbe952c0be867258448cfbaf5c0b66ffba6fcb27 fix: Skip detection of submodules entirely
+- ea543e34c4d395fe0ed417699dcaf3fbf77d68c4 Merge pull request #7 from salab/intellij-changelog-update-0.4.0
+- 1ee0a7e6fbb551ea83dceb14fbbb22342724323b IntelliJ Changelog Update - 0.4.0
+
 ## [0.4.0] - 2024-08-08
 
 - c418d3f51c576709ff0072bc9bd2244269cb4bfe v0.4.0
@@ -60,7 +67,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/salab/iccheck/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/salab/iccheck/compare/v0.3.12...v0.4.0
 [0.3.12]: https://github.com/salab/iccheck/compare/v0.3.11...v0.3.12
 [0.3.11]: https://github.com/salab/iccheck/compare/v0.3.10...v0.3.11
