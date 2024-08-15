@@ -1,6 +1,7 @@
 # ICCheck Extension for VSCode
 
-Reports possible inconsistent changes in pre-commit files.
+ICCheck takes any 2 revisions (including commit and worktree) from a Git repository
+and reports possible inconsistent changes in pre-commit files, commited files, and/or Pull Requests.
 
 ICCheck plugin lists pre-commit changes made on a git repository
 and checks missing changes on cloned codes (i.e. copy-pasted codes).
