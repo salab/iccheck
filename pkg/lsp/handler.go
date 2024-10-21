@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -120,12 +119,7 @@ func (h *handler) notifyAnalysisForPath(filePath string) {
 	gitPath, ok := getGitRoot(h.rootPath, filePath)
 	if ok {
 		gitFullPath := strings.Join(gitPath, string(os.PathSeparator))
-		go func() {
-			_, err := h.analyzeCache.Get(context.Background(), gitFullPath)
-			if err != nil {
-				slog.Warn("failed to analyze path", "path", gitFullPath, "error", err)
-			}
-		}()
+		h.debouncedAnalyze(gitFullPath)
 	}
 }
 
