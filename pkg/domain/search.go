@@ -6,6 +6,7 @@ import (
 	"github.com/go-git/go-git/v5/utils/binary"
 	"github.com/go-git/go-git/v5/utils/merkletrie/noder"
 	"github.com/salab/iccheck/pkg/utils/ds"
+	"github.com/salab/iccheck/pkg/utils/files"
 	"os"
 	"strings"
 )
@@ -75,15 +76,27 @@ func listFilesFromNoder(node noder.Noder, path []string) ([]string, error) {
 }
 
 func (d *diffTreeSearcher) Open(name string) (SearcherFile, error) {
-	content, err := d.tree.ReadFile(name)
+	// Check binary
+	reader, err := d.tree.Reader(name)
+	if err != nil {
+		return nil, err
+	}
+	isBinary, err := binary.IsBinary(reader)
+	if err != nil {
+		return nil, err
+	}
+	err = reader.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	// Check binary
-	isBinary, err := binary.IsBinary(strings.NewReader(content))
-	if err != nil {
-		return nil, err
+	var content string
+	if !isBinary {
+		b, err := files.ReadAll(d.tree.Reader(name))
+		if err != nil {
+			return nil, err
+		}
+		content = string(b)
 	}
 
 	return &inMemoryFile{

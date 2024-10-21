@@ -52,19 +52,15 @@ func (g *goGitCommitTree) FilterIgnoredChanges(changes merkletrie.Changes) merkl
 	return changes
 }
 
-func (g *goGitCommitTree) ReadFile(path string) (string, error) {
+func (g *goGitCommitTree) Reader(path string) (io.ReadCloser, error) {
 	g.l.Lock()
 	defer g.l.Unlock()
 
 	file, err := g.commit.File(path)
 	if err != nil {
-		return "", errors.Wrapf(err, "resolving file %v", path)
+		return nil, errors.Wrapf(err, "resolving file %v", path)
 	}
-	content, err := file.Contents()
-	if err != nil {
-		return "", errors.Wrapf(err, "reading file contents %v", file)
-	}
-	return content, nil
+	return file.Reader()
 }
 
 type goGitIndexTree struct{} // TODO?
@@ -121,20 +117,12 @@ func (g *goGitWorktree) FilterIgnoredChanges(changes merkletrie.Changes) merklet
 	return excludeIgnoredChanges(g.ignoreMatcher, changes)
 }
 
-func (g *goGitWorktree) ReadFile(path string) (string, error) {
+func (g *goGitWorktree) Reader(path string) (io.ReadCloser, error) {
 	file, err := g.fs.Open(path)
 	if err != nil {
-		return "", errors.Wrapf(err, "resolving file %v", path)
+		return nil, errors.Wrapf(err, "resolving file %v", path)
 	}
-	content, err := io.ReadAll(file)
-	if err != nil {
-		return "", errors.Wrapf(err, "reading file contents %v", path)
-	}
-	err = file.Close()
-	if err != nil {
-		return "", errors.Wrapf(err, "closing file %v", path)
-	}
-	return string(content), nil
+	return file, nil
 }
 
 // filesystemGitignoreOverlay intercepts Children() (and NumChildren()) calls and

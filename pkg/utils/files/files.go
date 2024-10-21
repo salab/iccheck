@@ -3,6 +3,7 @@ package files
 import (
 	"bytes"
 	"github.com/pkg/errors"
+	"io"
 	"os"
 	"strings"
 )
@@ -62,4 +63,12 @@ func ReadFileLines(filename string, startLine, endLine int) ([]byte, error) {
 	}
 
 	return content[startIdx:endIdx], nil
+}
+
+func ReadAll(reader io.ReadCloser, err error) ([]byte, error) {
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	return io.ReadAll(reader)
 }

@@ -12,7 +12,9 @@ import (
 	"github.com/go-git/go-git/v5/utils/merkletrie/noder"
 	"github.com/pkg/errors"
 	"github.com/salab/iccheck/pkg/utils/ds"
+	"github.com/salab/iccheck/pkg/utils/files"
 	"github.com/sergi/go-diff/diffmatchpatch"
+	"io"
 	"log/slog"
 )
 
@@ -31,8 +33,8 @@ type Tree interface {
 	Noder() (noder.Noder, error)
 	// FilterIgnoredChanges SHOULD filter ignored changes (such as paths specified in .gitignore), if any.
 	FilterIgnoredChanges(changes merkletrie.Changes) merkletrie.Changes
-	// ReadFile opens and reads file contents specified by path.
-	ReadFile(path string) (string, error)
+	// Reader returns io.ReadCloser to the file contents.
+	Reader(path string) (io.ReadCloser, error)
 }
 
 // --- adapters below
@@ -174,18 +176,18 @@ func changeToFilePatch(base, target Tree, c merkletrie.Change) (fdiff.FilePatch,
 
 	if action == merkletrie.Modify {
 		fromFilePath := c.From.String()
-		fromContent, err := base.ReadFile(fromFilePath)
+		fromContent, err := files.ReadAll(base.Reader(fromFilePath))
 		if err != nil {
 			return nil, errors.Wrapf(err, "reading base file contents %v", fromFilePath)
 		}
 
 		toFilePath := c.To.String()
-		toContent, err := target.ReadFile(toFilePath)
+		toContent, err := files.ReadAll(target.Reader(toFilePath))
 		if err != nil {
 			return nil, errors.Wrapf(err, "reading target file contents %v", toFilePath)
 		}
 
-		diffs := diff.Do(fromContent, toContent)
+		diffs := diff.Do(string(fromContent), string(toContent))
 		fp.chunks = ds.Map(diffs, func(d diffmatchpatch.Diff) fdiff.Chunk {
 			var typ fdiff.Operation
 			switch d.Type {
