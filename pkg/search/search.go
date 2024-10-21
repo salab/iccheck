@@ -34,8 +34,7 @@ type chunk struct {
 }
 
 func (c *chunk) searchQueryLines() (startL, endL int) {
-	// These 'before' fields are recorded so that they match the search query lines
-	return c.beforeStartL, c.beforeEndL
+	return c.afterStartL, c.afterEndL
 }
 
 type chunkTracker struct {
@@ -60,39 +59,6 @@ func (t *chunkTracker) patches() []*chunk {
 	return lo.Filter(t.chunks, func(c *chunk, _ int) bool {
 		return c.kind != changeKindEqual
 	})
-}
-
-// transformLineNum transforms line number 'view' from base commit to target commit.
-func (t *chunkTracker) transformLineNum(line int, isEnd bool) int {
-	for _, c := range t.chunks {
-		if c.beforeStartL <= line && line <= c.beforeEndL {
-			beforeLines := c.beforeEndL - c.beforeStartL
-			afterLines := c.afterEndL - c.afterStartL
-			isSameLines := beforeLines == afterLines
-			if isSameLines {
-				// Special case: if the chunk has the same lines between before and after, then align the lines
-				linesIntoChunk := line - c.beforeStartL
-				return c.afterStartL + linesIntoChunk
-			} else {
-				if isEnd {
-					return c.afterEndL
-				} else {
-					return c.afterStartL
-				}
-			}
-		}
-	}
-	slog.Warn(fmt.Sprintf("failed to convert line view for file %v at L%d", t.filename, line))
-	return line
-}
-
-func (t *chunkTracker) transformLineNumForChunk(c *domain.Clone) {
-	if t == nil {
-		// There was no change, so before and after lines are the same
-		return
-	}
-	c.StartL = t.transformLineNum(c.StartL, false)
-	c.EndL = t.transformLineNum(c.EndL, true)
 }
 
 // dedupe overlapping search result
@@ -303,14 +269,15 @@ func Search(ctx context.Context, fromTree, toTree domain.Tree) ([]*domain.CloneS
 	}
 
 	// Prepare searcher for opening files
-	fromSearcher := domain.NewSearcherFromTree(fromTree)
+	toSearcher := domain.NewSearcherFromTree(toTree)
 
 	// Prepare queries
 	queries := ds.Map(patchChunks, func(c *chunk) *domain.Source {
+		startL, endL := c.searchQueryLines()
 		return &domain.Source{
 			Filename: c.filename,
-			StartL:   c.beforeStartL,
-			EndL:     c.beforeEndL,
+			StartL:   startL,
+			EndL:     endL,
 		}
 	})
 
@@ -321,33 +288,23 @@ func Search(ctx context.Context, fromTree, toTree domain.Tree) ([]*domain.CloneS
 		})
 	*/
 
-	// Search for clones including the diff, in each snapshot
+	// Search for clones
 	slog.Info(fmt.Sprintf("Searching for clones corresponding to %d chunks...", len(queries)))
-	fromClones, err := fleccsSearchMulti(ctx, fromSearcher, queries, fromSearcher)
+	toClones, err := fleccsSearchMulti(ctx, toSearcher, queries, toSearcher)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching for clones")
 	}
 
 	// Deduplicate overlapping clones
-	fromClones = dedupeDetectedClones(fromClones)
+	toClones = dedupeDetectedClones(toClones)
 
 	// Calculate clone sets
-	rawCloneSets := findCloneSets(fromClones, queries)
+	rawCloneSets := findCloneSets(toClones, queries)
 
 	// Calculate inconsistent changes by listing clones not modified by this patch
 	cloneSets := filterMissingChanges(rawCloneSets, patchChunks)
 	// If all clones in a set went through some changes, no need to notify
 	cloneSets = lo.Filter(cloneSets, func(cs *domain.CloneSet, _ int) bool { return len(cs.Missing) > 0 })
-
-	// Convert from 'base' tree lines view to 'target' lines view
-	for _, cs := range cloneSets {
-		for _, c := range cs.Changed {
-			chunkTrackers[c.Filename].transformLineNumForChunk(c)
-		}
-		for _, c := range cs.Missing {
-			chunkTrackers[c.Filename].transformLineNumForChunk(c)
-		}
-	}
 
 	// Sort
 	domain.SortCloneSets(cloneSets)
