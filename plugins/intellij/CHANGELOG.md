@@ -4,6 +4,21 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2024-10-21
+
+- 7e5f1e5ac9a8bf89d1d56da0bad30ee31d1427f3 v0.5.0
+- fe62e2b8efecb11960d1acd30b7f8e833be78ac6 feat: Display info of clone set even if all clones are edited
+- 36f2ad3c0f8aefba28e6c9f6c023523e61e39bbc feat: Use 'after' tree to search for clones
+- e2f97f014c078c709f91c978becdb3b2d9ec6f8a perf: Use ttl for cache
+- 4e0071f25656faf4fb2e89ee692e1f5a6ba60761 perf: Use debounce of 0.5s for LSP server
+- 67a4ffd4147980a8f4571ec9c1f3dc6989a58fbb perf: Implement calculation cache for LSP server
+- 0ccbea5daa43cef3e843c1c74f3c78fd9aafe438 perf: Defer calculation of binary / contents
+- f2e0db2bd3e160bb5fe32e4b7fb043ac574eea6f perf: Skip reading file entirely if binary
+- f48d255df14654593b3954382174d0ddaa962a0c feat: Implement rate limiter for use with LSP server
+- e15db3c2bb54d93525a77f216f48088242d748a0 fix(lsp): Run deduplication was not working
+- 6d930f4349ce1be88b797c949da743c2374377b3 Merge pull request #9 from salab/intellij-changelog-update-0.4.2
+- 451db79ffdb89659cdb66debb6f7ec68b4d8613d IntelliJ Changelog Update - 0.4.2
+
 ## [0.4.2] - 2024-09-21
 
 - 74920c124634ec41a7c4b720762c0764c1da2bf7 v0.4.2
@@ -75,7 +90,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/salab/iccheck/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/salab/iccheck/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/salab/iccheck/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/salab/iccheck/compare/v0.3.12...v0.4.0
