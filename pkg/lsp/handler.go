@@ -120,7 +120,6 @@ func (h *handler) notifyAnalysisForPath(filePath string) {
 	gitPath, ok := getGitRoot(h.rootPath, filePath)
 	if ok {
 		gitFullPath := strings.Join(gitPath, string(os.PathSeparator))
-		h.analyzeCache.Forget(gitFullPath)
 		go func() {
 			_, err := h.analyzeCache.Get(context.Background(), gitFullPath)
 			if err != nil {

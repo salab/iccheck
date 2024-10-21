@@ -31,7 +31,7 @@ func NewHandler(timeout time.Duration) jsonrpc2.Handler {
 	}
 	// Dedupe calls to clone set calculation
 	h.filesCache = sc.NewMust(h.readFile, time.Minute, time.Minute, sc.EnableStrictCoalescing())
-	h.analyzeCache = sc.NewMust(h.analyzePath, time.Hour, time.Hour, sc.EnableStrictCoalescing())
+	h.analyzeCache = sc.NewMust(h.analyzePath, 0, 0, sc.EnableStrictCoalescing())
 	return jsonrpc2.HandlerWithError(h.handle)
 }
 
