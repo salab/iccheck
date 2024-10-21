@@ -20,7 +20,7 @@ type Searcher interface {
 type SearcherFile interface {
 	Name() string
 	IsBinary() (bool, error)
-	Lines() ([]string, error)
+	Content() ([]byte, error)
 }
 
 func NewSearcherFromTree(tree Tree) Searcher {
@@ -87,7 +87,7 @@ type inMemoryFile struct {
 	name string
 
 	isBinary *bool
-	lines    *[]string
+	content  *[]byte
 }
 
 func (i *inMemoryFile) Name() string {
@@ -116,17 +116,16 @@ func (i *inMemoryFile) IsBinary() (bool, error) {
 	return isBinary, nil
 }
 
-func (i *inMemoryFile) Lines() ([]string, error) {
-	if i.lines != nil {
-		return *i.lines, nil
+func (i *inMemoryFile) Content() ([]byte, error) {
+	if i.content != nil {
+		return *i.content, nil
 	}
 
 	b, err := files.ReadAll(i.d.tree.Reader(i.name))
 	if err != nil {
 		return nil, err
 	}
-	lines := strings.Split(string(b), "\n")
 
-	i.lines = &lines
-	return lines, nil
+	i.content = &b
+	return b, nil
 }

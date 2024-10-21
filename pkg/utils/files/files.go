@@ -72,3 +72,7 @@ func ReadAll(reader io.ReadCloser, err error) ([]byte, error) {
 	defer reader.Close()
 	return io.ReadAll(reader)
 }
+
+func Lines(content []byte) []string {
+	return strings.Split(string(content), "\n")
+}

@@ -6,10 +6,13 @@
 package fleccs
 
 import (
+	"bytes"
 	"context"
+	"github.com/cespare/xxhash"
 	"github.com/pkg/errors"
 	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/utils/ds"
+	"github.com/salab/iccheck/pkg/utils/files"
 	"github.com/salab/iccheck/pkg/utils/strs"
 	"github.com/samber/lo"
 	"github.com/sourcegraph/conc/pool"
@@ -38,6 +41,7 @@ type Query struct {
 	contextEndLine     int
 	contextLineLengths []int
 	contextBigrams     []strs.Set
+	hash               uint64
 }
 
 func (q *Query) toSource() Source {
@@ -53,10 +57,11 @@ func (q *Query) calculateContextLines(c *config, queryTree domain.Searcher) erro
 	if err != nil {
 		return errors.Wrapf(err, "opening file %v", q.Filename)
 	}
-	queryFileStrLines, err := file.Lines()
+	queryFileContent, err := file.Content()
 	if err != nil {
 		return errors.Wrapf(err, "reading file contents %v", q.Filename)
 	}
+	queryFileStrLines := files.Lines(queryFileContent)
 	queryFileLines := ds.Map(queryFileStrLines, func(l string) []byte { return []byte(l) })
 
 	q.contextStartLine = max(1, q.StartL-c.contextLines)               // inclusive, 1-indexed
@@ -67,6 +72,8 @@ func (q *Query) calculateContextLines(c *config, queryTree domain.Searcher) erro
 	q.contextBigrams = ds.Map(contextLines, func(line []byte) strs.Set {
 		return strs.NGram(2, line)
 	})
+
+	q.hash = xxhash.Sum64(bytes.Join(contextLines, nil))
 
 	return nil
 }
@@ -172,7 +179,12 @@ func fileSearch(
 		return nil, nil
 	}
 
-	fileStrLines, err := searchFile.Lines()
+	fileContent, err := searchFile.Content()
+	if err != nil {
+		return nil, errors.Wrapf(err, "reading search target file %v", searchFilename)
+	}
+	fileHash := xxhash.Sum64(fileContent)
+	fileStrLines := files.Lines(fileContent)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading lines of search target file %v", searchFilename)
 	}
@@ -189,9 +201,12 @@ func fileSearch(
 		if ctx.Err() != nil { // check for deadline
 			return nil, ctx.Err()
 		}
-		qCandidates := findCandidates(q, searchFilename, fileLineLengths, fileLineBigrams, similarityThreshold)
-		// Fix found candidate lines not to include the enlarged context lines
-		qCandidates = ds.Map(qCandidates, func(c *Candidate) *Candidate { return q.accountForContextLines(c) })
+
+		qCandidates := getFromCacheOrCalcCandidates(q.hash, fileHash, func() []*Candidate {
+			qCandidates := findCandidates(q, searchFilename, fileLineLengths, fileLineBigrams, similarityThreshold)
+			// Fix found candidate lines not to include the enlarged context lines
+			return ds.Map(qCandidates, func(c *Candidate) *Candidate { return q.accountForContextLines(c) })
+		})
 		candidates = append(candidates, qCandidates...)
 	}
 
