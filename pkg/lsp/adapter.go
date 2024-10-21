@@ -74,12 +74,18 @@ func (h *handler) analyzePath(ctx context.Context, gitPath string) (struct{}, er
 
 	// Transform
 	for _, cs := range cloneSets {
+		paths := make(map[string]struct{}, len(cs.Missing)+len(cs.Changed))
 		missingPaths := make(map[string]struct{}, len(cs.Missing))
+		for _, c := range cs.Missing {
+			paths[c.Filename] = struct{}{}
+			missingPaths[c.Filename] = struct{}{}
+		}
+		for _, c := range cs.Changed {
+			paths[c.Filename] = struct{}{}
+		}
 
 		// For all missing parts, display warnings
 		for _, c := range cs.Missing {
-			missingPaths[c.Filename] = struct{}{}
-
 			detectedPath := filepath.Join(append([]string{gitPath}, c.Filename)...)
 			lines, err := h.filesCache.Get(ctx, detectedPath)
 			if err != nil {
@@ -99,29 +105,46 @@ func (h *handler) analyzePath(ctx context.Context, gitPath string) (struct{}, er
 		// Also display warnings to changed lines, if no missing changes are nearby (in the same file)
 		for _, c := range cs.Changed {
 			detectedPath := filepath.Join(append([]string{gitPath}, c.Filename)...)
-
-			_, hasMissingWarning := missingPaths[c.Filename]
-			if !hasMissingWarning {
-				lines, err := h.filesCache.Get(ctx, detectedPath)
-				if err != nil {
-					return struct{}{}, err
-				}
-
-				const missingFilepathDisplayLimit = 3
-				missingPathList := lo.Keys(missingPaths)
-				message := fmt.Sprintf(
-					"Missing a change in other files? (%s%s)",
-					strings.Join(ds.Limit(missingPathList, missingFilepathDisplayLimit), ", "),
-					lo.Ternary(len(missingPathList) > missingFilepathDisplayLimit, ", ...", ""),
-				)
-				diagnostics[detectedPath] = append(diagnostics[detectedPath], &lsp.Diagnostic{
-					Range:    toLSPRange(c, lines),
-					Severity: lsp.Warning,
-					Code:     analyzeCodeName,
-					Source:   analyzeSourceName,
-					Message:  message,
-				})
+			lines, err := h.filesCache.Get(ctx, detectedPath)
+			if err != nil {
+				return struct{}{}, err
 			}
+
+			const filepathDisplayLimit = 3
+
+			var message string
+			var severity lsp.DiagnosticSeverity
+			if len(cs.Missing) > 0 {
+				// A change is missing.
+				missingPathList := lo.Keys(missingPaths)
+				message = fmt.Sprintf(
+					"Missing change(s) in other location(s)? (%d out of %d clones changed) (%s%s)",
+					len(cs.Changed),
+					len(cs.Changed)+len(cs.Missing),
+					strings.Join(ds.Limit(missingPathList, filepathDisplayLimit), ", "),
+					lo.Ternary(len(missingPathList) > filepathDisplayLimit, ", ...", ""),
+				)
+				severity = lsp.Warning
+			} else {
+				pathList := lo.Keys(paths)
+				// No change is missing in this clone set, but still display "info" line to signify
+				// that the user is editing a clone set.
+				message = fmt.Sprintf(
+					"Clone of size %d detected in %d files (%s%s)",
+					len(cs.Changed)+len(cs.Missing),
+					len(pathList),
+					strings.Join(ds.Limit(pathList, filepathDisplayLimit), ", "),
+					lo.Ternary(len(pathList) > filepathDisplayLimit, ", ...", ""),
+				)
+				severity = lsp.Info
+			}
+			diagnostics[detectedPath] = append(diagnostics[detectedPath], &lsp.Diagnostic{
+				Range:    toLSPRange(c, lines),
+				Severity: severity,
+				Code:     analyzeCodeName,
+				Source:   analyzeSourceName,
+				Message:  message,
+			})
 		}
 	}
 

@@ -67,6 +67,9 @@ Specify special values in base or target git ref arguments to compare against so
 			return err
 		}
 
+		// If all clones in a set went through some changes, no need to notify
+		cloneSets = lo.Filter(cloneSets, func(cs *domain.CloneSet, _ int) bool { return len(cs.Missing) > 0 })
+
 		// Report the findings
 		missingChanges := lo.SumBy(cloneSets, func(set *domain.CloneSet) int { return len(set.Missing) })
 		if missingChanges == 0 {

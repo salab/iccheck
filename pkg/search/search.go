@@ -303,8 +303,9 @@ func Search(ctx context.Context, fromTree, toTree domain.Tree) ([]*domain.CloneS
 
 	// Calculate inconsistent changes by listing clones not modified by this patch
 	cloneSets := filterMissingChanges(rawCloneSets, patchChunks)
-	// If all clones in a set went through some changes, no need to notify
-	cloneSets = lo.Filter(cloneSets, func(cs *domain.CloneSet, _ int) bool { return len(cs.Missing) > 0 })
+
+	// Filter size 1 "clone sets" - this is included in the calculation result of this algorithm, but not really "clone sets"
+	cloneSets = lo.Filter(cloneSets, func(cs *domain.CloneSet, _ int) bool { return len(cs.Missing)+len(cs.Changed) > 1 })
 
 	// Sort
 	domain.SortCloneSets(cloneSets)
