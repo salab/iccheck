@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const analyzeSourceName = "ICCheck"
@@ -47,7 +48,21 @@ type lspPublishDiagnosticsParams struct {
 }
 
 func (h *handler) analyzePath(ctx context.Context, gitPath string) (struct{}, error) {
-	slog.Info("analyzing", "gitPath", gitPath)
+	start := time.Now()
+	defer func() {
+		dur := time.Since(start)
+		slog.Info(fmt.Sprintf("Analysis took %v", dur), "gitPath", gitPath)
+		h.limiterLock.Lock() // Rate limit calculation must be serialized
+		toAdd := dur.Milliseconds()
+		added := h.limiter.Add(toAdd)
+		if added < toAdd {
+			sleepFor := time.Duration(float64(toAdd-added)/targetUtilization) * time.Millisecond
+			slog.Warn(fmt.Sprintf("Analyze rate limit reached, sleeping for %v ...", sleepFor), "gitPath", gitPath)
+			time.Sleep(sleepFor)
+		}
+		h.limiterLock.Unlock()
+	}()
+	slog.Debug("Analyzing ...", "gitPath", gitPath)
 
 	diagnostics := make(map[string][]*lsp.Diagnostic)
 

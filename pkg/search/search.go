@@ -297,7 +297,7 @@ func Search(ctx context.Context, fromTree, toTree domain.Tree) ([]*domain.CloneS
 	patchChunks := ds.FlatMap(lo.Values(chunkTrackers), func(c *chunkTracker) []*chunk {
 		return c.patches()
 	})
-	slog.Info("Detected patch chunks", "patches", len(patchChunks))
+	slog.Debug("Detected patch chunks", "patches", len(patchChunks))
 	for _, patch := range patchChunks {
 		slog.Debug(fmt.Sprintf("%v", patch))
 	}

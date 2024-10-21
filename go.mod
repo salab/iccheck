@@ -7,6 +7,7 @@ toolchain go1.22.0
 require (
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.12.0
+	github.com/kevinms/leakybucket-go v0.0.0-20200115003610-082473db97ca
 	github.com/motoki317/sc v1.8.1
 	github.com/pkg/errors v0.9.1
 	github.com/samber/lo v1.39.0

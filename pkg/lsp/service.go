@@ -5,10 +5,12 @@ package lsp
 import (
 	"context"
 	"fmt"
+	"github.com/kevinms/leakybucket-go"
 	"github.com/motoki317/sc"
 	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/sourcegraph/jsonrpc2"
 	"log/slog"
+	"sync"
 	"time"
 )
 
@@ -22,11 +24,18 @@ type handler struct {
 	timeout   time.Duration
 	rootPath  string
 	openFiles ds.SyncMap[string, string]
+
+	limiter     *leakybucket.LeakyBucket
+	limiterLock sync.Mutex
 }
+
+const targetUtilization = 0.25
+const bucketCapacitySeconds = 30
 
 func NewHandler(timeout time.Duration) jsonrpc2.Handler {
 	h := &handler{
 		timeout:   timeout,
+		limiter:   leakybucket.NewLeakyBucket(targetUtilization*1000, bucketCapacitySeconds*1000), // in milliseconds
 		openFiles: ds.SyncMap[string, string]{},
 	}
 	// Dedupe calls to clone set calculation
