@@ -76,40 +76,18 @@ func listFilesFromNoder(node noder.Noder, path []string) ([]string, error) {
 }
 
 func (d *diffTreeSearcher) Open(name string) (SearcherFile, error) {
-	// Check binary
-	reader, err := d.tree.Reader(name)
-	if err != nil {
-		return nil, err
-	}
-	isBinary, err := binary.IsBinary(reader)
-	if err != nil {
-		return nil, err
-	}
-	err = reader.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	var content string
-	if !isBinary {
-		b, err := files.ReadAll(d.tree.Reader(name))
-		if err != nil {
-			return nil, err
-		}
-		content = string(b)
-	}
-
 	return &inMemoryFile{
-		name:     name,
-		content:  content,
-		isBinary: isBinary,
+		d:    d,
+		name: name,
 	}, nil
 }
 
 type inMemoryFile struct {
-	name     string
-	content  string
-	isBinary bool
+	d    *diffTreeSearcher
+	name string
+
+	isBinary *bool
+	lines    *[]string
 }
 
 func (i *inMemoryFile) Name() string {
@@ -117,9 +95,38 @@ func (i *inMemoryFile) Name() string {
 }
 
 func (i *inMemoryFile) IsBinary() (bool, error) {
-	return i.isBinary, nil
+	if i.isBinary != nil {
+		return *i.isBinary, nil
+	}
+
+	reader, err := i.d.tree.Reader(i.name)
+	if err != nil {
+		return false, err
+	}
+	isBinary, err := binary.IsBinary(reader)
+	if err != nil {
+		return false, err
+	}
+	err = reader.Close()
+	if err != nil {
+		return false, err
+	}
+
+	i.isBinary = &isBinary
+	return isBinary, nil
 }
 
 func (i *inMemoryFile) Lines() ([]string, error) {
-	return strings.Split(i.content, "\n"), nil
+	if i.lines != nil {
+		return *i.lines, nil
+	}
+
+	b, err := files.ReadAll(i.d.tree.Reader(i.name))
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(string(b), "\n")
+
+	i.lines = &lines
+	return lines, nil
 }
