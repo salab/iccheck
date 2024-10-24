@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/search"
-	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/samber/lo"
 	"github.com/sourcegraph/go-lsp"
 	"log/slog"
@@ -74,15 +73,7 @@ func (h *handler) analyzePath(ctx context.Context, gitPath string) (struct{}, er
 
 	// Transform
 	for _, cs := range cloneSets {
-		paths := make(map[string]struct{}, len(cs.Missing)+len(cs.Changed))
-		missingPaths := make(map[string]struct{}, len(cs.Missing))
-		for _, c := range cs.Missing {
-			paths[c.Filename] = struct{}{}
-			missingPaths[c.Filename] = struct{}{}
-		}
-		for _, c := range cs.Changed {
-			paths[c.Filename] = struct{}{}
-		}
+		const filepathDisplayLimit = 3
 
 		// For all missing parts, display warnings
 		for _, c := range cs.Missing {
@@ -92,7 +83,11 @@ func (h *handler) analyzePath(ctx context.Context, gitPath string) (struct{}, er
 				return struct{}{}, err
 			}
 
-			message := fmt.Sprintf("Missing a change? (%d out of %d clones changed)", len(cs.Changed), len(cs.Changed)+len(cs.Missing))
+			message := fmt.Sprintf(
+				"Missing a change here? (%d out of %d clones changed: %s)",
+				len(cs.Changed), len(cs.Changed)+len(cs.Missing),
+				readablePaths(c.Filename, cs.Changed, filepathDisplayLimit),
+			)
 			diagnostics[detectedPath] = append(diagnostics[detectedPath], &lsp.Diagnostic{
 				Range:    toLSPRange(c, lines),
 				Severity: lsp.Warning,
@@ -110,31 +105,27 @@ func (h *handler) analyzePath(ctx context.Context, gitPath string) (struct{}, er
 				return struct{}{}, err
 			}
 
-			const filepathDisplayLimit = 3
-
 			var message string
 			var severity lsp.DiagnosticSeverity
 			if len(cs.Missing) > 0 {
 				// A change is missing.
-				missingPathList := lo.Keys(missingPaths)
 				message = fmt.Sprintf(
-					"Missing change(s) in other location(s)? (%d out of %d clones changed) (%s%s)",
+					"Missing %s in other %d %s? (%s) (%d out of %d clones changed)",
+					lo.Ternary(len(cs.Missing) == 1, "a change", "changes"),
+					len(cs.Missing),
+					lo.Ternary(len(cs.Missing) == 1, "location", "locations"),
+					readablePaths(c.Filename, cs.Missing, filepathDisplayLimit),
 					len(cs.Changed),
 					len(cs.Changed)+len(cs.Missing),
-					strings.Join(ds.Limit(missingPathList, filepathDisplayLimit), ", "),
-					lo.Ternary(len(missingPathList) > filepathDisplayLimit, ", ...", ""),
 				)
 				severity = lsp.Warning
 			} else {
-				pathList := lo.Keys(paths)
 				// No change is missing in this clone set, but still display "info" line to signify
 				// that the user is editing a clone set.
 				message = fmt.Sprintf(
-					"Clone of size %d detected in %d files (%s%s)",
+					"Clone of size %d detected (%s)",
 					len(cs.Changed)+len(cs.Missing),
-					len(pathList),
-					strings.Join(ds.Limit(pathList, filepathDisplayLimit), ", "),
-					lo.Ternary(len(pathList) > filepathDisplayLimit, ", ...", ""),
+					readablePaths(c.Filename, cs.Changed, filepathDisplayLimit),
 				)
 				severity = lsp.Info
 			}
