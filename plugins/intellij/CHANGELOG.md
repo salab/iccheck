@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [0.5.1] - 2024-10-24
+
+- 471fc1c4e430ef45f4bc0a1241c19cc506d12596 v0.5.1
+- 3ef3efa31129ccc720e1520aa58610a2da6e11fc impr(lsp): Readable clone locations
+- 1f51f9be29dbc164a6e231a91803fff3b1076a49 Merge pull request #10 from salab/intellij-changelog-update-0.5.0
+- 3cb8261de6ecfdbda9da8d31350d3daa632ff6a1 IntelliJ Changelog Update - 0.5.0
+
 ## [0.5.0] - 2024-10-21
 
 - 7e5f1e5ac9a8bf89d1d56da0bad30ee31d1427f3 v0.5.0
@@ -90,7 +97,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/salab/iccheck/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/salab/iccheck/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/salab/iccheck/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/salab/iccheck/compare/v0.4.0...v0.4.1
