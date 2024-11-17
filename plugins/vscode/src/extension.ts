@@ -5,10 +5,28 @@ import {
 	ServerOptions
 } from 'vscode-languageclient/node';
 import * as fs from 'node:fs';
+import * as path from 'node:path'
 
 let client: LanguageClient;
 
+const findExecutableOnPath = (name: string): string | undefined => {
+	for (const dir of process.env.PATH.split(path.delimiter)) {
+		const file = path.join(dir, name)
+		if (fs.existsSync(file) && !!(fs.statSync(file).mode & fs.constants.S_IXUSR)) {
+			return file
+		}
+	}
+	return undefined
+}
+
 const getBinaryPath = (context: ExtensionContext): string => {
+	// Prefer locally installed binary on PATH
+	const binaryPath = findExecutableOnPath('iccheck')
+	if (binaryPath) {
+		return binaryPath
+	}
+
+	// Otherwise, use the bundled binary
 	const linux = context.asAbsolutePath('./iccheck')
 	if (fs.existsSync(linux)) {
 		return linux
@@ -17,6 +35,7 @@ const getBinaryPath = (context: ExtensionContext): string => {
 	if (fs.existsSync(windows)) {
 		return windows
 	}
+
 	throw new Error('ICCheck binary not found, perhaps an extension release misconfiguration? Please contact the extension developer.')
 }
 
