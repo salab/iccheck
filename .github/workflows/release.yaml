@@ -44,7 +44,7 @@ jobs:
           - os: windows-latest
             platform: win32
             arch: arm64
-            binary_path: iccheck_windows_arm64/iccheck.exe
+            binary_path: iccheck_windows_arm64_v8.0/iccheck.exe
             npm_config_arch: arm
           - os: ubuntu-latest
             platform: linux
@@ -54,7 +54,7 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             arch: arm64
-            binary_path: iccheck_linux_arm64/iccheck
+            binary_path: iccheck_linux_arm64_v8.0/iccheck
             npm_config_arch: arm64
           - os: macos-latest
             platform: darwin
@@ -64,7 +64,7 @@ jobs:
           - os: macos-latest
             platform: darwin
             arch: arm64
-            binary_path: iccheck_darwin_arm64/iccheck
+            binary_path: iccheck_darwin_arm64_v8.0/iccheck
             npm_config_arch: arm64
     runs-on: ${{ matrix.os }}
     needs:
