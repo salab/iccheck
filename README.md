@@ -122,3 +122,9 @@ ICCheck will automatically run when you open or edit files, and display line war
 if you are likely missing changes to other similar lines.
 
 ![](./docs/editor-warning-example.png)
+
+You can set cursor to warnings and run 'Find References' to display all clone
+locations in the clone set.
+(Shift+F12 in VSCode, Alt+F7 in IntelliJ)
+
+![](./docs/find-references.png)

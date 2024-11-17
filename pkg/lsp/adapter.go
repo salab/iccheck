@@ -77,7 +77,7 @@ func (h *handler) analyzePath(ctx context.Context, gitPath string) (struct{}, er
 
 		// For all missing parts, display warnings
 		for _, c := range cs.Missing {
-			detectedPath := filepath.Join(append([]string{gitPath}, c.Filename)...)
+			detectedPath := filepath.Join(gitPath, c.Filename)
 			lines, err := h.filesCache.Get(ctx, detectedPath)
 			if err != nil {
 				return struct{}{}, err
@@ -99,7 +99,7 @@ func (h *handler) analyzePath(ctx context.Context, gitPath string) (struct{}, er
 
 		// Also display warnings to changed lines, if no missing changes are nearby (in the same file)
 		for _, c := range cs.Changed {
-			detectedPath := filepath.Join(append([]string{gitPath}, c.Filename)...)
+			detectedPath := filepath.Join(gitPath, c.Filename)
 			lines, err := h.filesCache.Get(ctx, detectedPath)
 			if err != nil {
 				return struct{}{}, err
@@ -140,7 +140,6 @@ func (h *handler) analyzePath(ctx context.Context, gitPath string) (struct{}, er
 	}
 
 	// Publish diagnostics
-	// TODO: remove old warnings when there are 0 diagnostics remaining in the file
 	for filename, d := range diagnostics {
 		err = h.conn.Notify(ctx, "textDocument/publishDiagnostics", lspPublishDiagnosticsParams{
 			URI:         h.appendFilePrefix(filename),
@@ -164,7 +163,8 @@ func (h *handler) analyzePath(ctx context.Context, gitPath string) (struct{}, er
 		}
 	}
 
-	// Store current diagnostic paths
+	// Store current analysis results and diagnostic paths
+	h.previousAnalysis.Store(gitPath, cloneSets)
 	h.previousDiagnostics.Store(gitPath, lo.Keys(diagnostics))
 
 	return struct{}{}, nil

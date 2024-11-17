@@ -3,11 +3,14 @@ package lsp
 import (
 	"context"
 	"encoding/json"
-	"github.com/sourcegraph/go-lsp"
-	"github.com/sourcegraph/jsonrpc2"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/salab/iccheck/pkg/domain"
+	"github.com/salab/iccheck/pkg/utils/ds"
+	"github.com/sourcegraph/go-lsp"
+	"github.com/sourcegraph/jsonrpc2"
 )
 
 const fileURIPrefix = "file://"
@@ -33,6 +36,7 @@ type initializeResult struct {
 type serverCapabilities struct {
 	TextDocumentSync   lsp.TextDocumentSyncOptions `json:"textDocumentSync"`
 	DiagnosticProvider diagnosticProvider          `json:"diagnosticProvider"`
+	ReferencesProvider bool                        `json:"referencesProvider"`
 }
 
 type diagnosticProvider struct {
@@ -57,6 +61,7 @@ func (h *handler) handleInitialize(_ context.Context, _ *jsonrpc2.Conn, req *jso
 				OpenClose: true,
 				Change:    lsp.TDSKFull,
 			},
+			ReferencesProvider: true,
 		},
 	}, nil
 }
@@ -151,5 +156,64 @@ func (h *handler) handleTextDocumentDiagnostic(_ context.Context, _ *jsonrpc2.Co
 	return textDocumentDiagnosticReport{
 		Kind:  "full",
 		Items: make([]*lsp.Diagnostic, 0),
+	}, nil
+}
+
+func (h *handler) handleTextDocumentReferences(_ context.Context, _ *jsonrpc2.Conn, req *jsonrpc2.Request) ([]*lsp.Location, error) {
+	if req.Params == nil {
+		return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+	}
+	var params lsp.ReferenceParams
+	if err := json.Unmarshal(*req.Params, &params); err != nil {
+		return nil, err
+	}
+
+	locations := make([]*lsp.Location, 0)
+	filePath := h.trimFilePrefix(params.TextDocument.URI)
+	gitPathElements, ok := getGitRoot(h.rootPath, filePath)
+	if !ok {
+		return locations, nil
+	}
+
+	gitPath := strings.Join(gitPathElements, string(os.PathSeparator))
+	cloneSets, ok := h.previousAnalysis.Load(gitPath)
+	if !ok {
+		return locations, nil
+	}
+
+	// NOTE: LSP location's line is 0-indexed, while our clone data is recorded in 1-indexed manner.
+	targetLine := params.Position.Line + 1
+
+	toLSPLocation := func(c *domain.Clone) (*lsp.Location, error) { return h.toLSPLocation(gitPath, c) }
+	// Check if target location is part of any clone set
+	for _, cs := range cloneSets {
+		clones := append(ds.Copy(cs.Missing), cs.Changed...)
+		for _, c := range clones {
+			cloneFullPath := filepath.Join(gitPath, c.Filename)
+			if filePath == cloneFullPath && c.StartL <= targetLine && targetLine <= c.EndL {
+				// Target location is inside a clone in this clone set
+				// => Display all clone locations in this set
+				locations, err := ds.MapError(clones, toLSPLocation)
+				if err != nil {
+					return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInternalError, Message: err.Error()}
+				}
+				return locations, nil
+			}
+		}
+	}
+
+	// Target location was not part of any clone set
+	return locations, nil
+}
+
+func (h *handler) toLSPLocation(gitPath string, clone *domain.Clone) (*lsp.Location, error) {
+	detectedPath := filepath.Join(gitPath, clone.Filename)
+	lines, err := h.filesCache.Get(context.Background(), detectedPath)
+	if err != nil {
+		return nil, err
+	}
+	return &lsp.Location{
+		URI:   h.appendFilePrefix(detectedPath),
+		Range: toLSPRange(clone, lines),
 	}, nil
 }

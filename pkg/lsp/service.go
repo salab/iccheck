@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/kevinms/leakybucket-go"
 	"github.com/motoki317/sc"
+	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/samber/lo"
 	"github.com/sourcegraph/jsonrpc2"
@@ -22,6 +23,7 @@ type handler struct {
 	analyzeCache        *sc.Cache[string, struct{}]
 	debouncedAnalyze    func(gitPath string)
 	previousDiagnostics ds.SyncMap[string, []string]
+	previousAnalysis    ds.SyncMap[string, []*domain.CloneSet]
 
 	timeout   time.Duration
 	rootPath  string
@@ -77,6 +79,8 @@ func (h *handler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2
 		return h.handleNop(ctx, conn, req)
 	case "textDocument/diagnostic":
 		return h.handleTextDocumentDiagnostic(ctx, conn, req)
+	case "textDocument/references":
+		return h.handleTextDocumentReferences(ctx, conn, req)
 	}
 
 	return nil, &jsonrpc2.Error{
