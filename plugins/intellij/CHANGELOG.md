@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2024-11-17
+
+- b51d2ea6b2673f72b2f91b880916f865894853e1 v0.6.0
+- 9a676da2d90afc0c479d7de74aafdec0c0b9bded feat(lsp/vscode): Prefer binary on PATH if installed
+- 02d1f48ba44a2fe80a3bd2b99272d5215ee8a9b4 feat(lsp): Use find references to display clone locations
+- 0dc897d7e7c9d9a92abbf6f7278f3fd9ce18754a Merge pull request #11 from salab/intellij-changelog-update-0.5.1
+- 2a815d61374a2fd01e3b5229f364d9af19eb07ac IntelliJ Changelog Update - 0.5.1
+
 ## [0.5.1] - 2024-10-24
 
 - 471fc1c4e430ef45f4bc0a1241c19cc506d12596 v0.5.1
@@ -97,7 +105,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/salab/iccheck/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/salab/iccheck/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/salab/iccheck/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/salab/iccheck/compare/v0.4.1...v0.4.2
