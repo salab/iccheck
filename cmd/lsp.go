@@ -3,22 +3,30 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/salab/iccheck/pkg/lsp"
-	"github.com/sourcegraph/jsonrpc2"
-	"github.com/spf13/cobra"
+	"log/slog"
 	"net"
 	"os"
 	"time"
+
+	"github.com/sourcegraph/jsonrpc2"
+	"github.com/spf13/cobra"
+
+	"github.com/salab/iccheck/pkg/lsp"
+	"github.com/salab/iccheck/pkg/utils/cli"
 )
 
 var lspCmd = &cobra.Command{
 	Use:          "lsp",
 	Short:        "Starts ICCheck Language Server",
 	SilenceUsage: true,
+	PreRun: func(cmd *cobra.Command, args []string) {
+		ver, rev := cli.GetVersion()
+		slog.Info("iccheck", "version", ver, "revision", rev)
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Code is partially copied from https://github.com/vito/bass/blob/main/cmd/bass/lsp.go
 		ctx := context.Background()
-		//rwc := lo.Must(newSocketRWC(8080))
+		// rwc := lo.Must(newSocketRWC(8080))
 		conn := jsonrpc2.NewConn(
 			ctx,
 			jsonrpc2.NewBufferedStream(stdRWC{}, jsonrpc2.VSCodeObjectCodec{}),

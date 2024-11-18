@@ -14,8 +14,8 @@ builds:
     ldflags:
       - -s
       - -w
-      - -X main.version={{.Version}}
-      - -X main.revision={{.ShortCommit}}
+      - -X github.com/salab/iccheck/pkg/utils/cli.version={{.Version}}
+      - -X github.com/salab/iccheck/pkg/utils/cli.revision={{.ShortCommit}}
     goos:
       - darwin
       - linux

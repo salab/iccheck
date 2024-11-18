@@ -7,10 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/salab/iccheck/pkg/domain"
-	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
+
+	"github.com/salab/iccheck/pkg/domain"
+	"github.com/salab/iccheck/pkg/utils/ds"
 )
 
 const fileURIPrefix = "file://"

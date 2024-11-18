@@ -3,18 +3,20 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
+	"time"
+
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/pkg/errors"
+	"github.com/samber/lo"
+	"github.com/spf13/cobra"
+
 	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/printer"
 	"github.com/salab/iccheck/pkg/search"
 	"github.com/salab/iccheck/pkg/utils/cli"
-	"github.com/samber/lo"
-	"github.com/spf13/cobra"
-	"log/slog"
-	"os"
-	"time"
 )
 
 // rootCmd represents the base command when called without any subcommands

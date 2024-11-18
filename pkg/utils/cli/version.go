@@ -1,20 +1,18 @@
 package cli
 
-import "fmt"
-
-var (
-	_version  = "dev"
-	_revision = "local"
+import (
+	"fmt"
 )
 
-func SetVersion(version, revision string) {
-	_version, _revision = version, revision
-}
+var (
+	version  = "dev"
+	revision = "local"
+)
 
-func GetVersion() (version, revision string) {
-	return _version, _revision
+func GetVersion() (_version, _revision string) {
+	return version, revision
 }
 
 func GetFormattedVersion() string {
-	return fmt.Sprintf("%s (%s)", _version, _revision)
+	return fmt.Sprintf("%s (%s)", version, revision)
 }
