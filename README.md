@@ -36,9 +36,6 @@ Running `iccheck --help` displays help message.
 ```text
 Finds inconsistent changes in your git changes.
 
-Specify special values in base or target git ref arguments to compare against some special filesystems.
-  "WORKTREE" : Compare against the current worktree.
-
 Usage:
   iccheck [flags]
   iccheck [command]
@@ -51,7 +48,7 @@ Flags:
       --disable-default-ignore   Disable default ignore configs
       --fail-code int            Exit code if it detects any inconsistent changes (default: 0)
       --format string            Format type (console, json, github) (default "console")
-  -f, --from string              Base git ref to compare against. Usually earlier in time. (default "main")
+  -f, --from string              Base git ref to compare against. Usually earlier in time.
   -h, --help                     help for iccheck
       --ignore stringArray       Regexp of file paths (and its contents) to ignore.
                                  If specifying both file paths and contents ignore regexp, split them by ':'.
@@ -60,7 +57,8 @@ Flags:
       --log-level string         Log level (debug, info, warn, error) (default "info")
   -r, --repo string              Source git directory (default ".")
       --timeout-seconds int      Timeout for detecting clones in seconds (default: 15) (default 15)
-  -t, --to string                Target git ref to compare from. Usually later in time. (default "HEAD")
+  -t, --to string                Target git ref to compare from. Usually later in time.
+                                 Can accept special value "WORKTREE" to specify the current worktree.
   -v, --version                  version for iccheck
 
 Use "iccheck [command] --help" for more information about a command.
