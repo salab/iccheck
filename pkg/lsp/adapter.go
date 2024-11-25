@@ -202,8 +202,14 @@ func (h *handler) getCloneSets(ctx context.Context, gitPath string) ([]*domain.C
 		return nil, errors.Wrap(err, "creating domain tree")
 	}
 
+	// Read ignore rules
+	ignore, err := h.ignoreRulesCache.Get(ctx, gitFullPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "getting ignore rules cache from %v", gitFullPath)
+	}
+
 	// Calculate
-	cloneSets, err := search.Search(ctx, headTree, targetTree)
+	cloneSets, err := search.Search(ctx, headTree, targetTree, ignore)
 	if err != nil {
 		return nil, err
 	}

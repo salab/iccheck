@@ -48,15 +48,20 @@ Available Commands:
   lsp         Starts ICCheck Language Server
 
 Flags:
-      --fail-code int         Exit code if it detects any inconsistent changes (default: 0)
-      --format string         Format type (console, json, github) (default "console")
-  -f, --from string           Base git ref to compare against. Usually earlier in time. (default "main")
-  -h, --help                  help for iccheck
-      --log-level string      Log level (debug, info, warn, error) (default "info")
-  -r, --repo string           Source git directory (default ".")
-      --timeout-seconds int   Timeout for detecting clones in seconds (default: 15) (default 15)
-  -t, --to string             Target git ref to compare from. Usually later in time. (default "HEAD")
-  -v, --version               version for iccheck
+      --disable-default-ignore   Disable default ignore configs
+      --fail-code int            Exit code if it detects any inconsistent changes (default: 0)
+      --format string            Format type (console, json, github) (default "console")
+  -f, --from string              Base git ref to compare against. Usually earlier in time. (default "main")
+  -h, --help                     help for iccheck
+      --ignore stringArray       Regexp of file paths (and its contents) to ignore.
+                                 If specifying both file paths and contents ignore regexp, split them by ':'.
+                                 Example (ignore dist directory): --ignore '^dist/'
+                                 Example (ignore import statements in js files): --ignore '\.m?[jt]s$:^import'
+      --log-level string         Log level (debug, info, warn, error) (default "info")
+  -r, --repo string              Source git directory (default ".")
+      --timeout-seconds int      Timeout for detecting clones in seconds (default: 15) (default 15)
+  -t, --to string                Target git ref to compare from. Usually later in time. (default "HEAD")
+  -v, --version                  version for iccheck
 
 Use "iccheck [command] --help" for more information about a command.
 ```
@@ -128,3 +133,42 @@ locations in the clone set.
 (Shift+F12 in VSCode, Alt+F7 in IntelliJ)
 
 ![](./docs/find-references.png)
+
+## Ignore Definitions
+
+ICCheck reads from the following files to determine which files and/or lines to ignore,
+when calculating info / warnings.
+
+1. `~/.config/.iccheckignore.{yaml,yml}`
+2. `${repoDir}/.iccheckignore.{yaml,yml}`
+
+The ignore definitions is a yaml array and syntax is as follows:
+
+```yaml
+# The whole file should be a yaml array, each of which is a single ignore definition rule.
+
+# "files" (if present) specifies which file paths to ignore.
+# "patterns" (if present) specifies which file contents to ignore.
+# Both keys use the golang regexp syntax: RE2
+# For RE2 syntax, see: https://github.com/google/re2/wiki/syntax
+
+# A rule to ignore all files under dist/ path.
+- files:
+    - "^dist/"
+
+# A rule to ignore lines which match '^import' in any file.
+- patterns:
+    - '^import'
+
+# A rule to ignore specific lines in .go files.
+- files:
+    - "\.go$"
+  patterns:
+    - '^package .+$'
+    - '^import ".+"$'
+    - '^import \($(^\s*".+"$)*\)$'
+```
+
+There are some built-in default rules in ICCheck.
+See [pkg/domain/ignore.go](./pkg/domain/ignore.go) for the default rules.
+These default rules can be disabled by the `--disable-default-ignore` CLI option.

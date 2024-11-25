@@ -19,6 +19,8 @@ import (
 type handler struct {
 	conn *jsonrpc2.Conn
 
+	ignoreRulesCache *sc.Cache[string, domain.IgnoreRules]
+
 	filesCache          *sc.Cache[string, []string]
 	analyzeCache        *sc.Cache[string, struct{}]
 	debouncedAnalyze    func(gitPath string)
@@ -38,12 +40,21 @@ var analyzeDebounce = 500 * time.Millisecond
 const targetUtilization = 0.25
 const bucketCapacitySeconds = 30
 
-func NewHandler(timeout time.Duration) jsonrpc2.Handler {
+func NewHandler(
+	timeout time.Duration,
+	ignoreCLIOptions []string,
+	disableDefaultIgnore bool,
+) jsonrpc2.Handler {
 	h := &handler{
 		timeout:   timeout,
 		limiter:   leakybucket.NewLeakyBucket(targetUtilization*1000, bucketCapacitySeconds*1000), // in milliseconds
 		openFiles: ds.SyncMap[string, string]{},
 	}
+
+	h.ignoreRulesCache = sc.NewMust(func(ctx context.Context, repoDir string) (domain.IgnoreRules, error) {
+		return domain.ReadIgnoreRules(repoDir, ignoreCLIOptions, disableDefaultIgnore)
+	}, time.Minute, 2*time.Minute)
+
 	// Dedupe calls to clone set calculation
 	h.filesCache = sc.NewMust(h.readFile, time.Minute, time.Minute, sc.EnableStrictCoalescing())
 	h.analyzeCache = sc.NewMust(h.analyzePath, 0, 0, sc.EnableStrictCoalescing())

@@ -26,11 +26,16 @@ var lspCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Code is partially copied from https://github.com/vito/bass/blob/main/cmd/bass/lsp.go
 		ctx := context.Background()
+		handler := lsp.NewHandler(
+			time.Duration(lspTimeoutSeconds)*time.Second,
+			ignoreCLIOptions,
+			disableDefaultIgnore,
+		)
 		// rwc := lo.Must(newSocketRWC(8080))
 		conn := jsonrpc2.NewConn(
 			ctx,
 			jsonrpc2.NewBufferedStream(stdRWC{}, jsonrpc2.VSCodeObjectCodec{}),
-			lsp.NewHandler(time.Duration(lspTimeoutSeconds)*time.Second),
+			handler,
 		)
 		<-conn.DisconnectNotify()
 		return nil

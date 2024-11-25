@@ -1,6 +1,8 @@
 package ds
 
-import "sync"
+import (
+	"sync"
+)
 
 // SyncMap is a simple wrapper around sync.Map.
 // https://www.reddit.com/r/golang/comments/twucb0/comment/j4x7xbx/
@@ -50,4 +52,15 @@ func (m *SyncMap[K, V]) Copy() map[K]V {
 
 func (m *SyncMap[K, V]) Store(key K, value V) {
 	m.m.Store(key, value)
+}
+
+func MergeMap[K comparable, V any, M ~map[K]V](m1, m2 M) M {
+	ret := make(M, len(m1)+len(m2))
+	for k, v := range m1 {
+		ret[k] = v
+	}
+	for k, v := range m2 {
+		ret[k] = v
+	}
+	return ret
 }

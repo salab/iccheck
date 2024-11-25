@@ -179,7 +179,11 @@ func filterMissingChanges(cloneSets [][]*domain.Clone, actualPatches []*chunk) [
 	})
 }
 
-func Search(ctx context.Context, fromTree, toTree domain.Tree) ([]*domain.CloneSet, error) {
+func Search(
+	ctx context.Context,
+	fromTree, toTree domain.Tree,
+	ignore domain.IgnoreRules,
+) ([]*domain.CloneSet, error) {
 	// Compare the trees
 	filePatches, err := domain.DiffTrees(fromTree, toTree)
 	if err != nil {
@@ -290,7 +294,7 @@ func Search(ctx context.Context, fromTree, toTree domain.Tree) ([]*domain.CloneS
 
 	// Search for clones
 	slog.Info(fmt.Sprintf("Searching for clones corresponding to %d chunks...", len(queries)))
-	toClones, err := fleccsSearchMulti(ctx, toSearcher, queries, toSearcher)
+	toClones, err := fleccsSearchMulti(ctx, toSearcher, queries, toSearcher, ignore)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching for clones")
 	}

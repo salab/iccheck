@@ -46,6 +46,12 @@ Specify special values in base or target git ref arguments to compare against so
 			return errors.New("invalid log level")
 		}
 
+		// Read ignore rules
+		ignore, err := domain.ReadIgnoreRules(repoDir, ignoreCLIOptions, disableDefaultIgnore)
+		if err != nil {
+			return errors.Wrapf(err, "reading ignore rules")
+		}
+
 		// Prepare
 		repo, err := git.PlainOpen(repoDir)
 		if err != nil {
@@ -64,7 +70,7 @@ Specify special values in base or target git ref arguments to compare against so
 		slog.Info("Searching for inconsistent changes...", "repository", repoDir, "from", fromRef, "to", toRef)
 		slog.Info(fmt.Sprintf("Base ref: %v", fromTree.String()))
 		slog.Info(fmt.Sprintf("Target ref: %v", toTree.String()))
-		cloneSets, err := search.Search(ctx, fromTree, toTree)
+		cloneSets, err := search.Search(ctx, fromTree, toTree, ignore)
 		if err != nil {
 			return err
 		}
@@ -114,6 +120,11 @@ var (
 	timeoutSeconds int
 )
 
+var (
+	ignoreCLIOptions     []string
+	disableDefaultIgnore bool
+)
+
 func init() {
 	rootCmd.Flags().StringVarP(&repoDir, "repo", "r", ".", "Source git directory")
 	rootCmd.Flags().StringVarP(&fromRef, "from", "f", "main", "Base git ref to compare against. Usually earlier in time.")
@@ -123,6 +134,12 @@ func init() {
 	rootCmd.Flags().StringVar(&formatType, "format", "console", "Format type (console, json, github)")
 	rootCmd.Flags().IntVar(&failCode, "fail-code", 0, "Exit code if it detects any inconsistent changes (default: 0)")
 	rootCmd.Flags().IntVar(&timeoutSeconds, "timeout-seconds", 15, "Timeout for detecting clones in seconds (default: 15)")
+
+	rootCmd.PersistentFlags().StringArrayVar(&ignoreCLIOptions, "ignore", nil, `Regexp of file paths (and its contents) to ignore.
+If specifying both file paths and contents ignore regexp, split them by ':'.
+Example (ignore dist directory): --ignore '^dist/'
+Example (ignore import statements in js files): --ignore '\.m?[jt]s$:^import'`)
+	rootCmd.PersistentFlags().BoolVar(&disableDefaultIgnore, "disable-default-ignore", false, "Disable default ignore configs")
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.AddCommand(lspCmd)

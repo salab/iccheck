@@ -123,18 +123,26 @@ func findCandidates(
 	searchFilename string,
 	searchFileLineLengths []int,
 	searchFileBigrams []strs.Set,
+	ignoreRule *domain.IgnoreLineRule,
 	similarityThreshold float64,
 ) []*Candidate {
 	var candidates []*Candidate
+	windowSize := len(q.contextBigrams)
 
-	if len(searchFileBigrams) < len(q.contextBigrams) {
+	if len(searchFileBigrams) < windowSize {
 		// If the search target file is shorter than the query lines (including context)
 		// TODO: compare once?
 	}
 
-	for i := 0; i < len(searchFileBigrams)-len(q.contextBigrams)+1; i++ {
-		startLine := i                       // 0-indexed, inclusive
-		endLine := i + len(q.contextBigrams) // 0-indexed, exclusive
+	for i := 0; i < len(searchFileBigrams)-windowSize+1; i++ {
+		startLine := i            // 0-indexed, inclusive
+		endLine := i + windowSize // 0-indexed, exclusive
+
+		// Check if this region is skipped
+		if canSkip, skipUntil := ignoreRule.CanSkip(i, windowSize); canSkip {
+			i = skipUntil
+			continue
+		}
 
 		fileCmpLengths := searchFileLineLengths[startLine:endLine]
 		fileCmpLines := searchFileBigrams[startLine:endLine]
@@ -147,7 +155,7 @@ func findCandidates(
 				Similarity: similarity,
 				Source:     q.toSource(),
 			})
-			i += len(q.contextBigrams) - 1 // Proceed the search window
+			i += windowSize - 1 // Proceed the search window
 		}
 	}
 
@@ -159,6 +167,7 @@ func fileSearch(
 	queries []*Query,
 	searchTree domain.Searcher,
 	searchFilename string,
+	ignore domain.IgnoreRules,
 	similarityThreshold float64,
 ) ([]*Candidate, error) {
 	if ctx.Err() != nil { // check for deadline
@@ -183,11 +192,15 @@ func fileSearch(
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading search target file %v", searchFilename)
 	}
+
+	// Check ignore settings
+	skipEntireFile, ignoreRule := ignore.Match(searchFilename, fileContent)
+	if skipEntireFile {
+		return nil, nil
+	}
+
 	fileHash := xxhash.Sum64(fileContent)
 	fileStrLines := files.Lines(fileContent)
-	if err != nil {
-		return nil, errors.Wrapf(err, "reading lines of search target file %v", searchFilename)
-	}
 	fileLines := ds.Map(fileStrLines, func(l string) []byte { return []byte(l) })
 
 	fileLineLengths := ds.Map(fileLines, func(line []byte) int { return len(line) })
@@ -203,7 +216,7 @@ func fileSearch(
 		}
 
 		qCandidates := getFromCacheOrCalcCandidates(q.hash, fileHash, func() []*Candidate {
-			qCandidates := findCandidates(q, searchFilename, fileLineLengths, fileLineBigrams, similarityThreshold)
+			qCandidates := findCandidates(q, searchFilename, fileLineLengths, fileLineBigrams, ignoreRule, similarityThreshold)
 			// Fix found candidate lines not to include the enlarged context lines
 			return ds.Map(qCandidates, func(c *Candidate) *Candidate { return q.accountForContextLines(c) })
 		})
@@ -218,6 +231,7 @@ func Search(
 	queriesTree domain.Searcher,
 	queries []*Query,
 	searchTree domain.Searcher,
+	ignore domain.IgnoreRules,
 	options ...ConfigFunc,
 ) ([]*Candidate, error) {
 	// Calculate config
@@ -246,7 +260,7 @@ func Search(
 		WithFirstError()
 	for _, searchFile := range searchFiles {
 		p.Go(func(ctx context.Context) ([]*Candidate, error) {
-			return fileSearch(ctx, queries, searchTree, searchFile, c.similarityThreshold)
+			return fileSearch(ctx, queries, searchTree, searchFile, ignore, c.similarityThreshold)
 		})
 	}
 	candidates, err := p.Wait()

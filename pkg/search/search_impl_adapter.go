@@ -55,6 +55,7 @@ func fleccsSearchMulti(
 	sourceTree domain.Searcher,
 	sources []*domain.Source,
 	searchTree domain.Searcher,
+	ignore domain.IgnoreRules,
 ) ([]*domain.Clone, error) {
 	queries := ds.Map(sources, func(s *domain.Source) *fleccs.Query {
 		return &fleccs.Query{
@@ -69,6 +70,7 @@ func fleccsSearchMulti(
 		sourceTree,
 		queries,
 		searchTree,
+		ignore,
 	)
 	if err != nil {
 		return nil, err
