@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"fmt"
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
@@ -18,17 +19,18 @@ import (
 
 type goGitCommitTree struct {
 	commit *object.Commit
+	ref    string
 
 	// go-git's (*object).Commit does not allow concurrent read through File() for some reason
 	l sync.Mutex
 }
 
-func NewGoGitCommitTree(commit *object.Commit) Tree {
-	return &goGitCommitTree{commit: commit}
+func NewGoGitCommitTree(commit *object.Commit, ref string) Tree {
+	return &goGitCommitTree{commit: commit, ref: ref}
 }
 
 func (g *goGitCommitTree) String() string {
-	return g.commit.String()
+	return fmt.Sprintf("%s (%s)", g.ref, g.commit.Hash.String())
 }
 
 func (g *goGitCommitTree) Tree() (t *object.Tree, err error, ok bool) {

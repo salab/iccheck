@@ -293,7 +293,7 @@ func Search(
 	*/
 
 	// Search for clones
-	slog.Info(fmt.Sprintf("Searching for clones corresponding to %d chunks...", len(queries)))
+	slog.Info(fmt.Sprintf("%d file change(s) and %d change chunk(s) detected. Checking for clones now...", len(filePatches), len(queries)))
 	toClones, err := fleccsSearchMulti(ctx, toSearcher, queries, toSearcher, ignore)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching for clones")

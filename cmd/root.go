@@ -83,9 +83,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Search for inconsistent changes
-		slog.Info("Searching for inconsistent changes...", "repository", repoDir, "from", fromRef, "to", toRef)
-		slog.Info(fmt.Sprintf("Base ref: %v", fromTree.String()))
-		slog.Info(fmt.Sprintf("Target ref: %v", toTree.String()))
+		slog.Info("Checking for diff...", "repository", repoDir, "from", fromTree, "to", toTree)
 		cloneSets, err := search.Search(ctx, fromTree, toTree, ignore)
 		if err != nil {
 			return err
@@ -255,7 +253,7 @@ func resolveTree(repo *git.Repository, ref string) (domain.Tree, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "resolving commit from hash %v", *hash)
 	}
-	return domain.NewGoGitCommitTree(commit), nil
+	return domain.NewGoGitCommitTree(commit, ref), nil
 }
 
 func getPrinter() printer.Printer {

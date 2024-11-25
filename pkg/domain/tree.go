@@ -15,7 +15,6 @@ import (
 	"github.com/salab/iccheck/pkg/utils/files"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"io"
-	"log/slog"
 )
 
 // Tree represents a tree-like filesystem with various backends.
@@ -112,7 +111,6 @@ func DiffTrees(base, target Tree) ([]fdiff.FilePatch, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "diffing base to target commit tree")
 		}
-		slog.Info("File changes detected", "files", len(changes))
 
 		filePatches, err := ds.FlatMapError(changes, func(c *object.Change) ([]fdiff.FilePatch, error) {
 			p, err := c.Patch()
@@ -144,8 +142,6 @@ func DiffTrees(base, target Tree) ([]fdiff.FilePatch, error) {
 
 	changes = base.FilterIgnoredChanges(changes) // maybe exclusion by base tree is not necessary
 	changes = target.FilterIgnoredChanges(changes)
-
-	slog.Info("File changes detected", "files", len(changes))
 
 	filePatches, err := ds.MapError(changes, func(c merkletrie.Change) (fdiff.FilePatch, error) {
 		return changeToFilePatch(base, target, c)
