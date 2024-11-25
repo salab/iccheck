@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -50,6 +51,13 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Prepare
+		if repoDir == "" {
+			repoDir, err = autoDetermineTopLevelGit()
+			if err != nil {
+				return errors.Wrapf(err, "detecting git repository")
+			}
+		}
+
 		repo, err := git.PlainOpen(repoDir)
 		if err != nil {
 			return errors.Wrapf(err, "opening repository at %v", repoDir)
@@ -134,7 +142,7 @@ var (
 )
 
 func init() {
-	rootCmd.Flags().StringVarP(&repoDir, "repo", "r", ".", "Source git directory")
+	rootCmd.Flags().StringVarP(&repoDir, "repo", "r", "", "Source git directory (supports bare)")
 	rootCmd.Flags().StringVarP(&fromRef, "from", "f", "", "Base git ref to compare against. Usually earlier in time.")
 	rootCmd.Flags().StringVarP(&toRef, "to", "t", "", `Target git ref to compare from. Usually later in time.
 Can accept special value "WORKTREE" to specify the current worktree.`)
@@ -154,25 +162,49 @@ Example (ignore import statements in js files): --ignore '\.m?[jt]s$:^import'`)
 	rootCmd.AddCommand(lspCmd)
 }
 
-func autoDetermineRefs(repo *git.Repository) (from, to string, err error) {
-	ref, err := repo.Reference(plumbing.HEAD, true)
+func autoDetermineTopLevelGit() (string, error) {
+	dir, err := os.Getwd()
 	if err != nil {
-		return "", "", errors.Wrapf(err, "resolving HEAD ref")
+		return "", errors.Wrap(err, "getting current working directory")
 	}
+	for {
+		// Is this directory a git (bare or non-bare) repository?
+		if _, err := git.PlainOpen(dir); err == nil {
+			return dir, nil
+		}
 
-	// Just assume that the "default branch" for this repository is master or main
-	// - default branch per repository (except for init.defaultBranch config) is a remote-specific config
-	// and cannot be retrieved from local repository.
-	// cf. https://stackoverflow.com/a/70080259
-	headName := ref.Name().Short()
-	if headName == "main" || headName == "master" {
-		// If we're on default branch, a reasonable default would be from this branch to the current worktree.
-		return headName, worktreeRef, nil
+		// Recurse up to parent directory...
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", errors.New("no git repository found")
+		}
+		dir = parent
+	}
+}
+
+func autoDetermineRefs(repo *git.Repository) (from, to string, err error) {
+	_, wtErr := repo.Worktree()
+	isBare := errors.Is(wtErr, git.ErrIsBareRepository)
+
+	if !isBare {
+		ref, err := repo.Reference(plumbing.HEAD, true)
+		if err != nil {
+			return "", "", errors.Wrapf(err, "resolving HEAD ref")
+		}
+		// Just assume that the "default branch" for this repository is master or main
+		// - default branch per repository (except for init.defaultBranch config) is a remote-specific config
+		// and cannot be retrieved from local repository.
+		// cf. https://stackoverflow.com/a/70080259
+		headName := ref.Name().Short()
+		if headName == "main" || headName == "master" {
+			// If we're on default branch, a reasonable default would be from this branch to the current worktree.
+			return headName, worktreeRef, nil
+		}
 	}
 
 	// We're not on default branch, so let's calculate diff from default branch to current HEAD.
 	// Let's check if 'main' or 'master' is present in this repository
-	ref, err = repo.Reference(plumbing.NewBranchReferenceName("main"), true)
+	ref, err := repo.Reference(plumbing.NewBranchReferenceName("main"), true)
 	if err == nil {
 		return ref.Name().Short(), "HEAD", nil
 	}
