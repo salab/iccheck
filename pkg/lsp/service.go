@@ -92,6 +92,8 @@ func (h *handler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2
 		return h.handleTextDocumentDiagnostic(ctx, conn, req)
 	case "textDocument/references":
 		return h.handleTextDocumentReferences(ctx, conn, req)
+	case "textDocument/codeAction":
+		return h.handleTextDocumentCodeAction(ctx, conn, req)
 	}
 
 	return nil, &jsonrpc2.Error{

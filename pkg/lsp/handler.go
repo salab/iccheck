@@ -218,3 +218,10 @@ func (h *handler) toLSPLocation(gitPath string, clone *domain.Clone) (*lsp.Locat
 		Range: toLSPRange(clone, lines),
 	}, nil
 }
+
+func (h *handler) handleTextDocumentCodeAction(_ context.Context, _ *jsonrpc2.Conn, _ *jsonrpc2.Request) (any, error) {
+	// IntelliJ clients send textDocument/codeAction requests for some reason,
+	// even though we have not announced codeAction capabilities.
+	// For now, in order to suppress error logs, just return 'null' which is also a valid response.
+	return nil, nil
+}
