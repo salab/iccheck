@@ -59,12 +59,15 @@ func TestIgnoreRule_matchFile(t *testing.T) {
 	}
 }
 
-const testContent = `package main
+func TestIgnoreRule_matchContents(t *testing.T) {
+	const testContent = `package main
 
 import "fmt"
+import yamlv3 "gopkg.in/yaml.v3"
 
 import (
   "fmt"
+  yamlv3 "gopkg.in/yaml.v3"
 )
 
 func main() {
@@ -72,7 +75,6 @@ func main() {
 }
 `
 
-func TestIgnoreRule_matchContents(t *testing.T) {
 	cases := []struct {
 		name     string
 		pattern  string
@@ -89,20 +91,22 @@ func TestIgnoreRule_matchContents(t *testing.T) {
 		},
 		{
 			"go 2",
-			`import ".+"$`,
+			`import (.+ )?".+"$`,
 			testContent,
 			map[int]struct{}{
 				2: {},
+				3: {},
 			},
 		},
 		{
 			"go 3",
-			`^import \(\n(\s+".+"\n)*\)$`,
+			`^import \(\n(\s+(.+ )?".+"\n)*\)$`,
 			testContent,
 			map[int]struct{}{
-				4: {},
 				5: {},
 				6: {},
+				7: {},
+				8: {},
 			},
 		},
 	}
@@ -161,6 +165,19 @@ func TestIgnoreLineRule_CanSkip(t *testing.T) {
 }
 
 func TestIgnoreRules_Match(t *testing.T) {
+	const testContent = `package main
+
+import "fmt"
+
+import (
+  "fmt"
+)
+
+func main() {
+  fmt.Println("Hello World")
+}
+`
+
 	i := IgnoreConfigs{
 		// Ignore whole file rule
 		{
@@ -176,7 +193,7 @@ func TestIgnoreRules_Match(t *testing.T) {
 		{
 			Files: []string{"^main.go$"},
 			Patterns: []string{
-				`^import \(\n(\s+".+"\n)*\)$`,
+				`^import \(\n(\s+(.+ )?".+"\n)*\)$`,
 			},
 		},
 	}

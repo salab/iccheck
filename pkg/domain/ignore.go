@@ -20,8 +20,8 @@ var defaultIgnoreConfigs = IgnoreConfigs{
 		Files: []string{"\\.go$"},
 		Patterns: []string{
 			`^package .+$`,
-			`import ".+"$`,
-			`^import \(\n(\s+".+"\n)*\)$`,
+			`^import (.+ )?".+"$`,
+			`^import \(\n(\s+(.+ )?".+"\n)*\)$`,
 		},
 	},
 	{

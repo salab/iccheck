@@ -165,8 +165,8 @@ The ignore definitions is a yaml array and syntax is as follows:
     - "\.go$"
   patterns:
     - '^package .+$'
-    - '^import ".+"$'
-    - '^import \($(^\s*".+"$)*\)$'
+    - '^import (.+ )?".+"$'
+    - '^import \(\n(\s+(.+ )?".+"\n)*\)$'
 ```
 
 There are some built-in default rules in ICCheck.
