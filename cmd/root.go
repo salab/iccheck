@@ -100,7 +100,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		printer := getPrinter()
-		out := printer.PrintClones(repoDir, cloneSets)
+		out := printer.PrintClones(cloneSets)
 		fmt.Print(string(out))
 
 		// If any inconsistent changes are found, exit with specified code

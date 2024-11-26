@@ -4,10 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/salab/iccheck/pkg/domain"
-	"github.com/salab/iccheck/pkg/utils/ds"
 )
-
-const githubPrintLimit = 3
 
 // githubPrinter prints output in GitHub annotations compatible format.
 // https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions
@@ -17,17 +14,9 @@ func NewGitHubPrinter() Printer {
 	return &githubPrinter{}
 }
 
-func (g *githubPrinter) PrintClones(_ string, sets []*domain.CloneSet) []byte {
+func (g *githubPrinter) PrintClones(sets []*domain.CloneSet) []byte {
 	var buf bytes.Buffer
 
-	missingChanges := ds.FlatMap(sets, func(cs *domain.CloneSet) []*domain.Clone { return cs.Missing })
-	exceedLimit := len(missingChanges) > githubPrintLimit
-	if exceedLimit {
-		buf.WriteString(fmt.Sprintf("Warn: Many (%d) inconsistent changes detected. Only displaying the top %d.\n", len(missingChanges), githubPrintLimit))
-	}
-
-	var limit int
-outer:
 	for _, set := range sets {
 		for _, c := range set.Missing {
 			buf.WriteString(
@@ -43,12 +32,8 @@ outer:
 					),
 				),
 			)
-
-			limit++
-			if limit >= githubPrintLimit {
-				break outer
-			}
 		}
 	}
+
 	return buf.Bytes()
 }

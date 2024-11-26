@@ -21,7 +21,6 @@ type jsonSource struct {
 }
 
 type jsonClone struct {
-	BaseDir  string        `json:"base_dir"`
 	Filename string        `json:"filename"`
 	StartL   int           `json:"start_l"`
 	EndL     int           `json:"end_l"`
@@ -34,9 +33,8 @@ type jsonCloneSet struct {
 	Changed []*jsonClone `json:"changed"`
 }
 
-func (j *jsonPrinter) formatClone(repoDir string, c *domain.Clone) *jsonClone {
+func (j *jsonPrinter) formatClone(c *domain.Clone) *jsonClone {
 	return &jsonClone{
-		BaseDir:  repoDir,
 		Filename: c.Filename,
 		StartL:   c.StartL,
 		EndL:     c.EndL,
@@ -51,18 +49,18 @@ func (j *jsonPrinter) formatClone(repoDir string, c *domain.Clone) *jsonClone {
 	}
 }
 
-func (j *jsonPrinter) formatCloneSet(repoDir string, set *domain.CloneSet) *jsonCloneSet {
+func (j *jsonPrinter) formatCloneSet(set *domain.CloneSet) *jsonCloneSet {
 	return &jsonCloneSet{
-		Missing: ds.Map(set.Missing, func(c *domain.Clone) *jsonClone { return j.formatClone(repoDir, c) }),
-		Changed: ds.Map(set.Changed, func(c *domain.Clone) *jsonClone { return j.formatClone(repoDir, c) }),
+		Missing: ds.Map(set.Missing, func(c *domain.Clone) *jsonClone { return j.formatClone(c) }),
+		Changed: ds.Map(set.Changed, func(c *domain.Clone) *jsonClone { return j.formatClone(c) }),
 	}
 }
 
-func (j *jsonPrinter) PrintClones(repoDir string, sets []*domain.CloneSet) []byte {
+func (j *jsonPrinter) PrintClones(sets []*domain.CloneSet) []byte {
 	var buf bytes.Buffer
 	encoder := json.NewEncoder(&buf)
 	for _, set := range sets {
-		obj := j.formatCloneSet(repoDir, set)
+		obj := j.formatCloneSet(set)
 		lo.Must0(encoder.Encode(obj))
 	}
 	return buf.Bytes()
