@@ -152,7 +152,7 @@ The ignore definitions is a yaml array and syntax is as follows:
 
 # A rule to ignore all files under dist/ path.
 - files:
-    - "^dist/"
+    - '^dist/'
 
 # A rule to ignore lines which match '^import' in any file.
 - patterns:
@@ -160,7 +160,7 @@ The ignore definitions is a yaml array and syntax is as follows:
 
 # A rule to ignore specific lines in .go files.
 - files:
-    - "\.go$"
+    - '\.go$'
   patterns:
     - '^package .+$'
     - '^import (.+ )?".+"$'
