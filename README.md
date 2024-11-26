@@ -21,9 +21,11 @@ While ICCheck detects many cloned codes correctly, it may also detect many false
 
 See "GitHub Actions Usage" section below.
 
-### Editor Extensions (VSCode, IntelliJ IDEA, or any LSP-compatible editors)
+### Editor Extensions
 
 ICCheck utilizes [LSP (Language Server Protocol)](https://microsoft.github.io/language-server-protocol/) to support multiple editors.
+
+![](./docs/editor-warning-example.png)
 
 Currently, the following extensions are available from the authors:
 
