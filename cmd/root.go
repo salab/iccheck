@@ -83,7 +83,6 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Search for inconsistent changes
-		slog.Info("Checking for diff...", "repository", repoDir, "from", fromTree, "to", toTree)
 		cloneSets, err := search.Search(ctx, fromTree, toTree, ignore)
 		if err != nil {
 			return err
@@ -95,9 +94,9 @@ var rootCmd = &cobra.Command{
 		// Report the findings
 		missingChanges := lo.SumBy(cloneSets, func(set *domain.CloneSet) int { return len(set.Missing) })
 		if missingChanges == 0 {
-			slog.Info(fmt.Sprintf("No clones are missing inconsistent changes."))
+			slog.Info(fmt.Sprintf("No clones are missing consistent change."))
 		} else {
-			slog.Info(fmt.Sprintf("%d clone(s) are likely missing a consistent change.", missingChanges))
+			slog.Info(fmt.Sprintf("%d clone(s) are likely missing consistent change.", missingChanges))
 		}
 
 		printer := getPrinter()
