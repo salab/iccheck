@@ -1,31 +1,59 @@
 # ICCheck - Inconsistent Change Checker
 
-ICCheck takes any 2 revisions (including commit and worktree) from a Git repository
-and reports possible inconsistent changes in pre-commit files, commited files, and/or Pull Requests.
+ICCheck finds inconsistent changes in your copy-pasted codes!
 
-ICCheck lists (pre-commit) changes made on a git repository
-and checks missing changes on cloned codes (i.e. copy-pasted codes).
+ICCheck takes any 2 revisions in a Git repository, and reports possible inconsistent changes.
+Compare between HEAD and worktree for pre-commit changes, or between main and your feature branch
+to run last-second checks on Pull Requests.
 
-The plugin and the method for detecting cloned code is still in development and being improved.
-While ICCheck detects many cloned codes correctly, note that it may also detect many false-positives.
+Please note that the way of detecting copy-pasted codes (i.e. cloned codes) is heuristic,
+and therefore is not perfect.
+While ICCheck detects many cloned codes correctly, it may also detect many false-positives.
 
 ## Installation
 
-### Command Line Interface (CLI, Binary File)
+### Command Line Interface (statically-linked binary)
 
 - Download from the [latest releases](https://github.com/salab/iccheck/releases) page.
 - Or, build it from source: `go install github.com/salab/iccheck@latest`
 
-### Editor Extensions (VSCode, IntelliJ IDEA)
+### GitHub Actions
 
-ICCheck utilizes [LSP (Language Server Protocol)](https://microsoft.github.io/language-server-protocol/) to support many editors with ease.
+See "GitHub Actions Usage" section below.
 
-Currently, the following extensions are available:
+### Editor Extensions (VSCode, IntelliJ IDEA, or any LSP-compatible editors)
+
+ICCheck utilizes [LSP (Language Server Protocol)](https://microsoft.github.io/language-server-protocol/) to support multiple editors.
+
+Currently, the following extensions are available from the authors:
 
 - VSCode: [iccheck - Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=motoki317.iccheck)
 - IntelliJ IDEA Ultimate: [ICCheck - Inconsistency Check - IntelliJ IDEs Plugin | Marketplace](https://plugins.jetbrains.com/plugin/24779-iccheck--inconsistency-check)
 
+If your editor is LSP-compatible, download the binary and run `iccheck lsp` command to launch the Language Server.
+
 ## CLI Usage
+
+Quick start: Run ICCheck in a git repository, with some local changes.
+
+```plaintext
+$ iccheck
+2024/11/26 22:43:13 INFO 22 change chunk(s) within 3 file(s) found. from="HEAD (d46bf7e87fb62877f0052534659589ecc4c8aa41)" to=WORKTREE
+2024/11/26 22:43:13 INFO 5 clone(s) are likely missing consistent change.
+
+Clone set #0 - 5 out of 6 clones are likely missing consistent change(s).
+  Missing changes (5):
+    pkg/lsp/handler.go:74 (L74-L74)
+    pkg/lsp/handler.go:93 (L93-L93)
+    pkg/lsp/handler.go:112 (L112-L112)
+    pkg/lsp/handler.go:147 (L147-L147)
+    pkg/lsp/handler.go:52 (L52-L52)
+  Changed clones (1):
+    pkg/lsp/handler.go:167 (L167-L167)
+```
+
+ICCheck has found changes between HEAD commit and the worktree, and found that you are possibly
+missing changes to the reported locations.
 
 Running `iccheck --help` displays help message.
 
@@ -55,17 +83,11 @@ Flags:
       --timeout-seconds int      Timeout for detecting clones in seconds (default 15)
   -t, --to string                Target git ref to compare from. Usually later in time.
                                  Can accept special value "WORKTREE" to specify the current worktree.
-  -v, --version                  version for iccheck
 
 Use "iccheck [command] --help" for more information about a command.
 ```
 
-Example:
-Run ICCheck on this git repository for the last commit, to detect any inconsistent changes.
-
-`iccheck --from HEAD~ --to HEAD --repo .`
-
-#### Output Format
+### CLI Output Format
 
 ICCheck outputs detected inconsistent changes to stdout, and other logging outputs to stderr.
 
@@ -91,26 +113,24 @@ on:
       - 'main'
   pull_request:
 
-env:
-  ICCHECK_FROM: "origin/main"
-  ICCHECK_TO: "HEAD"
-
 jobs:
   iccheck:
     name: Change Check
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/setup-go@v5
+      - name: Install ICCheck
+        run: go install github.com/salab/iccheck@latest
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: '0'
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.22"
-      - name: Set different base commit on main branch
-        if: github.ref == 'refs/heads/main'
-        run: echo "ICCHECK_FROM=HEAD~" >> "$GITHUB_ENV"
-      - run: go install github.com/salab/iccheck@latest
-      - run: iccheck --from "$ICCHECK_FROM" --to "$ICCHECK_TO" --format github
+      - name: Determine refs
+        run: |
+          ICCHECK_FROM="${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || 'HEAD^' }}"
+          ICCHECK_TO="HEAD"
+      - name: Check for inconsistent changes
+        run: iccheck --from "$ICCHECK_FROM" --to "$ICCHECK_TO" --format github
 ```
 
 ## Editor Extensions
@@ -124,7 +144,7 @@ if you are likely missing changes to other similar lines.
 
 You can set cursor to warnings and run 'Find References' to display all clone
 locations in the clone set.
-(Shift+F12 in VSCode, Alt+F7 in IntelliJ)
+(For example, Shift+F12 in VSCode, Alt+F7 in IntelliJ)
 
 ![](./docs/find-references.png)
 

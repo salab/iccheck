@@ -1,7 +1,7 @@
 package fleccs
 
 import (
-	"github.com/dgraph-io/ristretto"
+	"github.com/dgraph-io/ristretto/v2"
 	"github.com/samber/lo"
 	"time"
 	"unsafe"

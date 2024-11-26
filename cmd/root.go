@@ -67,13 +67,15 @@ Finds inconsistent changes in your git changes.`, cli.GetFormattedVersion()),
 			return errors.Wrapf(err, "opening repository at %v", repoDir)
 		}
 
-		if (fromRef == "" && toRef != "") || (fromRef != "" && toRef == "") {
-			return errors.New("only one of --from or --to is set, this is invalid - do not set for automatic ref detection or set both")
-		}
-		if fromRef == "" && toRef == "" {
+		if fromRef == "" && toRef != "" {
+			// Only --to ref was given - a reasonable default would be to compare from parent of that ref.
+			fromRef = toRef + "^"
+		} else if fromRef != "" && toRef == "" {
+			return errors.New("only one of --from was set, this is invalid - do not set for automatic discovery or set both")
+		} else if fromRef == "" && toRef == "" {
 			fromRef, toRef, err = autoDetermineRefs(repo)
 			if err != nil {
-				return errors.Wrapf(err, "automatically determining refs")
+				return errors.Wrapf(err, "determining refs")
 			}
 		}
 
@@ -197,51 +199,76 @@ func autoDetermineRefs(repo *git.Repository) (from, to string, err error) {
 	isBare := errors.Is(wtErr, git.ErrIsBareRepository)
 
 	if !isBare {
-		ref, err := repo.Reference(plumbing.HEAD, true)
+		// Let's see if there are any local changes on worktree
+		wt, err := repo.Worktree()
 		if err != nil {
-			return "", "", errors.Wrapf(err, "resolving HEAD ref")
+			return "", "", errors.Wrapf(err, "resolving worktree")
 		}
-		// Just assume that the "default branch" for this repository is master or main
-		// - default branch per repository (except for init.defaultBranch config) is a remote-specific config
-		// and cannot be retrieved from local repository.
-		// cf. https://stackoverflow.com/a/70080259
-		headName := ref.Name().Short()
-		if headName == "main" || headName == "master" {
-			// If we're on default branch, a reasonable default would be from this branch to the current worktree.
-			return headName, worktreeRef, nil
+		st, err := wt.Status()
+		if err != nil {
+			return "", "", errors.Wrapf(err, "querying worktree status")
+		}
+		if !st.IsClean() {
+			// If there are local changes, then a reasonable default would be from HEAD to the current worktree.
+			return "HEAD", worktreeRef, nil
 		}
 	}
 
-	// We're not on default branch, so let's calculate diff from default branch to current HEAD.
-	// Let's check if 'main' or 'master' is present in this repository
+	// Either the repository is bare, or the working tree is clean.
+	// Let's check the default branch of this repository.
+	// A reasonable default would be from default branch to HEAD.
+	defaultBranch, err := determineDefaultBranch(repo)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "determining default branch")
+	}
+
+	// Unless, we're already on that default branch - then a reasonable default would be from HEAD^ to HEAD.
+	ref, err := repo.Reference(plumbing.HEAD, true)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "resolving HEAD ref")
+	}
+	headName := ref.Name().Short()
+	if headName == defaultBranch {
+		return defaultBranch + "^", defaultBranch, nil
+	}
+
+	return defaultBranch, "HEAD", nil
+}
+
+// determineDefaultBranch detects 'default branch' on this repository.
+//
+// NOTE: Default branch per repository (except for init.defaultBranch config) is a remote-specific config
+// and cannot be determined from local repository.
+// cf. https://stackoverflow.com/a/70080259
+func determineDefaultBranch(repo *git.Repository) (string, error) {
+	// Fast path: Check if 'main' or 'master' is present in this repository.
 	ref, err := repo.Reference(plumbing.NewBranchReferenceName("main"), true)
 	if err == nil {
-		return ref.Name().Short(), "HEAD", nil
+		return ref.Name().Short(), nil
 	}
 	ref, err = repo.Reference(plumbing.NewBranchReferenceName("master"), true)
 	if err == nil {
-		return ref.Name().Short(), "HEAD", nil
+		return ref.Name().Short(), nil
 	}
 
-	// We were not able to determine default branch from this local repository
-	// - fallback to listing remote refs and finding HEAD from the result.
+	// Fallback to listing remote refs and finding HEAD from the result.
 	remote, err := repo.Remote("origin")
-	if err == nil {
-		slog.Info("Fetching origin to determine default branch...")
-		refs, err := remote.List(&git.ListOptions{})
-		if err != nil {
-			return "", "", errors.Wrapf(err, "listing refs from origin")
-		}
-		for _, ref := range refs {
-			if ref.Type() == plumbing.SymbolicReference && ref.Name().String() == "HEAD" {
-				// We found refs/heads/origin/HEAD - its symbolic ref target is the default branch.
-				defaultBranch := ref.Target().Short()
-				return defaultBranch, "HEAD", nil
-			}
+	if err != nil {
+		return "", errors.Wrapf(err, "resolving remote origin")
+	}
+	slog.Info("Fetching origin to determine default branch...")
+	refs, err := remote.List(&git.ListOptions{})
+	if err != nil {
+		return "", errors.Wrapf(err, "listing refs from origin")
+	}
+	for _, ref := range refs {
+		if ref.Type() == plumbing.SymbolicReference && ref.Name().String() == "HEAD" {
+			// We found refs/heads/origin/HEAD - its symbolic ref target is the default branch.
+			defaultBranch := ref.Target().Short()
+			return defaultBranch, nil
 		}
 	}
-
-	return "", "", errors.New("unable to determine default compare refs - please manually set 'from' and 'to' parameters")
+	return "", errors.New("origin did not contain HEAD symbolic ref, something could be off here?")
 }
 
 const worktreeRef = "WORKTREE"
