@@ -4,6 +4,32 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2024-11-26
+
+- 3f22f97aac4fbe48e4cf69a53f79c6f8f7f51a5c fix: go mod tidy
+- 4e548c15a6e84ec2be10824eba2e1a75ea8874ff v0.7.0
+- c0e619b7546332f5bbb81946e61d711ae6ac61ba impr: README, add visual to top
+- 0ae0c8ca04405559f65698aa21c3da8e690350e2 chores: Update packages, README
+- d46bf7e87fb62877f0052534659589ecc4c8aa41 impr: Display version when installed via go install
+- b9b092ce1ebcc9dfa2b8746189849a24c739e1a3 chores: Use buildinfo to display metadata
+- 757b539b344551f9ce863d10a5de5c0192dbdbd8 impr: Auto suppress info logs by default on pipe
+- 001c1fe3e88df803517cdb6e6d23c4fd771b6670 impr: Concise printers
+- c29a7ec25c173699596580b73ce66e79b55308b9 impr: More concise logging
+- 244dbb704a7068ef3d98e6eea98e6ad3f9c7d6d2 fix: yaml syntax in readme
+- 208586e10c94d10a0e9eae9e0103dd921e1df8b4 impr(log): Concise logging
+- f692a4aaa3ee689423a9aa21ddd7e76c479c5464 impr: Auto detect toplevel git / support bare
+- e6a858f7f21881b2af945179ab1349ede2a0990e impr: Smarter default refs detection
+- 36ab76b5d3d88d9292c08231b931753e90e36e66 chores: Fix diff / crlf problem
+- 2e8008e4b69d00d5cf4cfaea6a1df1182baf366d chores: Update go-git
+- d5168e5d4688669d41e9b24e5f54fdb845f9c27b chores(lsp:intellij): Suppress codeAction error logs
+- 9242d239545683be3cd3b476abeef5be968d1595 fix: Golang default ignore rule
+- 2eedf919392706049cb379630fe78add01424154 feat: Allow ignoring files/contents by regexp
+- 0bc3a56d3234bdc59c74344796660dce7cafec69 chores: Remove obsolete test code
+- fcd14f9af9bf1bf6f0e9d5b39bca56ce63534022 fix: version/revision embedding
+- 03a4506ccc208548aa49b8595fb0741fb1b105d7 fix vscode publish ci
+- 44edd7fa24a27a353cb71ede8161d4ca51f0071d Merge pull request #12 from salab/intellij-changelog-update-0.6.0
+- d73becff7053cd6968ee61f97efe55f6d62f082a IntelliJ Changelog Update - 0.6.0
+
 ## [0.6.0] - 2024-11-17
 
 - b51d2ea6b2673f72b2f91b880916f865894853e1 v0.6.0
@@ -105,7 +131,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/salab/iccheck/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/salab/iccheck/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/salab/iccheck/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/salab/iccheck/compare/v0.4.2...v0.5.0
