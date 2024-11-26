@@ -23,10 +23,10 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:          "iccheck",
-	Version:      cli.GetFormattedVersion(),
-	Short:        "Finds inconsistent changes in your git changes",
-	Long:         `Finds inconsistent changes in your git changes.`,
+	Use:   "iccheck",
+	Short: "Finds inconsistent changes in your git changes",
+	Long: fmt.Sprintf(`ICCheck %v
+Finds inconsistent changes in your git changes.`, cli.GetFormattedVersion()),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(timeoutSeconds))

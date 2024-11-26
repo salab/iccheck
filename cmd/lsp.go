@@ -16,12 +16,13 @@ import (
 )
 
 var lspCmd = &cobra.Command{
-	Use:          "lsp",
-	Short:        "Starts ICCheck Language Server",
+	Use:   "lsp",
+	Short: "Starts ICCheck Language Server",
+	Long: fmt.Sprintf(`ICCheck %v
+Starts ICCheck Language Server.`, cli.GetFormattedVersion()),
 	SilenceUsage: true,
 	PreRun: func(cmd *cobra.Command, args []string) {
-		ver, rev := cli.GetVersion()
-		slog.Info("iccheck", "version", ver, "revision", rev)
+		slog.Info("ICCheck " + cli.GetFormattedVersion())
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Code is partially copied from https://github.com/vito/bass/blob/main/cmd/bass/lsp.go

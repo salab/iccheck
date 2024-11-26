@@ -25,11 +25,7 @@ Currently, the following extensions are available:
 - VSCode: [iccheck - Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=motoki317.iccheck)
 - IntelliJ IDEA Ultimate: [ICCheck - Inconsistency Check - IntelliJ IDEs Plugin | Marketplace](https://plugins.jetbrains.com/plugin/24779-iccheck--inconsistency-check)
 
-## Usage
-
-### CLI
-
-#### Input Format
+## CLI Usage
 
 Running `iccheck --help` displays help message.
 
@@ -46,7 +42,7 @@ Available Commands:
 
 Flags:
       --disable-default-ignore   Disable default ignore configs
-      --fail-code int            Exit code if it detects any inconsistent changes (default: 0)
+      --fail-code int            Exit code if it detects any inconsistent changes
       --format string            Format type (console, json, github) (default "console")
   -f, --from string              Base git ref to compare against. Usually earlier in time.
   -h, --help                     help for iccheck
@@ -54,9 +50,9 @@ Flags:
                                  If specifying both file paths and contents ignore regexp, split them by ':'.
                                  Example (ignore dist directory): --ignore '^dist/'
                                  Example (ignore import statements in js files): --ignore '\.m?[jt]s$:^import'
-      --log-level string         Log level (debug, info, warn, error) (default "info")
-  -r, --repo string              Source git directory (default ".")
-      --timeout-seconds int      Timeout for detecting clones in seconds (default: 15) (default 15)
+      --log-level string         Log level (debug, info, warn, error)
+  -r, --repo string              Source git directory (supports bare)
+      --timeout-seconds int      Timeout for detecting clones in seconds (default 15)
   -t, --to string                Target git ref to compare from. Usually later in time.
                                  Can accept special value "WORKTREE" to specify the current worktree.
   -v, --version                  version for iccheck
@@ -82,7 +78,7 @@ For example, one can utilize `jq` to process the JSON stdout into [the GitHub Ac
 iccheck --format json | jq -r '":::notice file=\(.filename),line=\(.start_l),endLine=\(.end_l),title=Possible missing change::Possible missing a consistent change here (L\(.start_l) - L\(.end_l), distance \(.distance))"'
 ```
 
-#### In GitHub Actions
+## GitHub Actions Usage
 
 An example workflow file:
 
@@ -117,7 +113,7 @@ jobs:
       - run: iccheck --from "$ICCHECK_FROM" --to "$ICCHECK_TO" --format github
 ```
 
-### Editor Extensions
+## Editor Extensions
 
 Install the extension.
 Then, edit any text files in a git-controlled directory.

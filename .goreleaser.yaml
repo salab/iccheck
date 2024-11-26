@@ -15,7 +15,6 @@ builds:
       - -s
       - -w
       - -X github.com/salab/iccheck/pkg/utils/cli.version={{.Version}}
-      - -X github.com/salab/iccheck/pkg/utils/cli.revision={{.ShortCommit}}
     goos:
       - darwin
       - linux
