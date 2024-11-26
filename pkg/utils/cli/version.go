@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	version  = "SNAPSHOT"
+	version  string
 	revision string
 	dirty    bool
 	time     string
@@ -17,6 +17,9 @@ func init() {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return
+	}
+	if version == "" {
+		version = info.Main.Version
 	}
 	for _, setting := range info.Settings {
 		if setting.Key == "vcs.revision" {
@@ -32,5 +35,12 @@ func init() {
 }
 
 func GetFormattedVersion() string {
-	return fmt.Sprintf("%s (%s%s, %s)", version, revision, lo.Ternary(dirty, "+dirty", ""), time)
+	revisionMeta := revision +
+		lo.Ternary(dirty, "+dirty", "") +
+		lo.Ternary(time != "", ", "+time, "")
+	if revisionMeta == "" {
+		return version
+	} else {
+		return fmt.Sprintf("%s (%s)", version, revisionMeta)
+	}
 }
