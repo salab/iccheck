@@ -20,6 +20,7 @@ require (
 	github.com/spf13/cobra v1.8.0
 	github.com/theodesp/unionfind v0.0.0-20200112172429-2bf90fd5b8c5
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
+	golang.org/x/term v0.26.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

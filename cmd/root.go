@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"golang.org/x/term"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -31,6 +32,9 @@ var rootCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(timeoutSeconds))
 		defer cancel()
 
+		if logLevel == "" {
+			logLevel = autoDetermineLogLevel()
+		}
 		switch logLevel {
 		case "debug":
 			slog.SetLogLoggerLevel(slog.LevelDebug)
@@ -144,10 +148,10 @@ func init() {
 	rootCmd.Flags().StringVarP(&toRef, "to", "t", "", `Target git ref to compare from. Usually later in time.
 Can accept special value "WORKTREE" to specify the current worktree.`)
 
-	rootCmd.Flags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
+	rootCmd.Flags().StringVar(&logLevel, "log-level", "", "Log level (debug, info, warn, error)")
 	rootCmd.Flags().StringVar(&formatType, "format", "console", "Format type (console, json, github)")
-	rootCmd.Flags().IntVar(&failCode, "fail-code", 0, "Exit code if it detects any inconsistent changes (default: 0)")
-	rootCmd.Flags().IntVar(&timeoutSeconds, "timeout-seconds", 15, "Timeout for detecting clones in seconds (default: 15)")
+	rootCmd.Flags().IntVar(&failCode, "fail-code", 0, "Exit code if it detects any inconsistent changes")
+	rootCmd.Flags().IntVar(&timeoutSeconds, "timeout-seconds", 15, "Timeout for detecting clones in seconds")
 
 	rootCmd.PersistentFlags().StringArrayVar(&ignoreCLIOptions, "ignore", nil, `Regexp of file paths (and its contents) to ignore.
 If specifying both file paths and contents ignore regexp, split them by ':'.
@@ -157,6 +161,15 @@ Example (ignore import statements in js files): --ignore '\.m?[jt]s$:^import'`)
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.AddCommand(lspCmd)
+}
+
+func autoDetermineLogLevel() string {
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		return "info"
+	} else {
+		// Suppress verbose logging messages by default, if output is not a tty - likely a pipe or a file.
+		return "warn"
+	}
 }
 
 func autoDetermineTopLevelGit() (string, error) {
