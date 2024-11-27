@@ -40,7 +40,7 @@ type Query struct {
 	contextStartLine   int
 	contextEndLine     int
 	contextLineLengths []int
-	contextBigrams     []strs.Set
+	contextBigrams     []strs.BigramSet
 	hash               uint64
 }
 
@@ -69,8 +69,8 @@ func (q *Query) calculateContextLines(c *config, queryTree domain.Searcher) erro
 
 	contextLines := queryFileLines[q.contextStartLine-1 : q.contextEndLine]
 	q.contextLineLengths = ds.Map(contextLines, func(line []byte) int { return len(line) })
-	q.contextBigrams = ds.Map(contextLines, func(line []byte) strs.Set {
-		return strs.NGram(2, line)
+	q.contextBigrams = ds.Map(contextLines, func(line []byte) strs.BigramSet {
+		return strs.Bigram(line)
 	})
 
 	q.hash = xxhash.Sum64(bytes.Join(contextLines, nil))
@@ -91,18 +91,18 @@ func (q *Query) accountForContextLines(c *Candidate) *Candidate {
 }
 
 // disc returns Dice-Sørensen Coefficient.
-func disc(bigram1, bigram2 strs.Set) float64 {
+func disc(bigram1, bigram2 strs.BigramSet) float64 {
 	totalSetLen := len(bigram1) + len(bigram2)
 	if totalSetLen == 0 {
 		return 0
 	}
-	intersection := strs.IntersectionCount(bigram1, bigram2)
+	intersection := strs.BigramIntersectionCount(bigram1, bigram2)
 	return 2 * float64(intersection) / float64(totalSetLen)
 }
 
 // waDiSC returns Weighted-Average DiSC (Dice-Sørensen Coefficient).
-func waDiSC(lengths1, lengths2 []int, bigrams1, bigrams2 []strs.Set) float64 {
-	discs := lo.Map(bigrams1, func(bigram1 strs.Set, idx int) float64 {
+func waDiSC(lengths1, lengths2 []int, bigrams1, bigrams2 []strs.BigramSet) float64 {
+	discs := lo.Map(bigrams1, func(bigram1 strs.BigramSet, idx int) float64 {
 		return disc(bigram1, bigrams2[idx])
 	})
 	totalLength := lo.Sum(lengths1) + lo.Sum(lengths2)
@@ -122,7 +122,7 @@ func findCandidates(
 	q *Query,
 	searchFilename string,
 	searchFileLineLengths []int,
-	searchFileBigrams []strs.Set,
+	searchFileBigrams []strs.BigramSet,
 	ignoreRule *domain.IgnoreLineRule,
 	similarityThreshold float64,
 ) []*Candidate {
@@ -204,8 +204,8 @@ func fileSearch(
 	fileLines := ds.Map(fileStrLines, func(l string) []byte { return []byte(l) })
 
 	fileLineLengths := ds.Map(fileLines, func(line []byte) int { return len(line) })
-	fileLineBigrams := ds.Map(fileLines, func(line []byte) strs.Set {
-		return strs.NGram(2, line)
+	fileLineBigrams := ds.Map(fileLines, func(line []byte) strs.BigramSet {
+		return strs.Bigram(line)
 	})
 
 	var candidates []*Candidate

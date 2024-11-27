@@ -96,3 +96,19 @@ func SortDesc[E any, K constraints.Ordered](key func(e E) K) func(e1, e2 E) int 
 		}
 	}
 }
+
+// Uniq compresses all successive duplicate elements in sorted slice, like unix command 'uniq'.
+func Uniq[E comparable, S ~[]E](sorted S) S {
+	if len(sorted) == 0 {
+		return sorted
+	}
+	newIdx := 1
+	for i := 1; i < len(sorted); i++ {
+		prev, cur := sorted[i-1], sorted[i]
+		if prev != cur {
+			sorted[newIdx] = cur
+			newIdx++
+		}
+	}
+	return sorted[:newIdx]
+}
