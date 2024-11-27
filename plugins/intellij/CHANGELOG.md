@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+## [0.7.1] - 2024-11-27
+
+- 7bcdf4a70c22ece3d99632baa87d8063a447092b v0.7.1
+- 47597bb9fdfff0baf06efdda82cd1eba6510963a fix: Load system gitignore patterns
+- d6eb9a3271ac94dc9db6fbe4749f59dc92747619 fix: concurrent writes / refactor overlay
+- e6243cc66188fd5980cf56e1b3c2362f955fae4f perf: Preload files in go-git commit object
+- 30a87a9e3ae281e9bd7af6cb1f3bd1ef9939297a fix: fixup perf: use uint16
+- 41d6d535fd4ede0dcaee499a90568d8f36e3cdf6 perf: Optimize bigram intersection
+- a4fa46a0be76d54c4ccb9c33e73cf22b25b38b9f feat: Add algorithm flag and adapt ncdsearch algorithm
+- a44c8aa2b89a92a2f3c73c2d243c7712fa78dc10 Merge pull request #13 from salab/intellij-changelog-update-0.7.0
+- d1aa5177c3a0323773399a3a3ada7bc9b7f673fd IntelliJ Changelog Update - 0.7.0
+
 ## [0.7.0] - 2024-11-26
 
 - 3f22f97aac4fbe48e4cf69a53f79c6f8f7f51a5c fix: go mod tidy
@@ -131,7 +143,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/salab/iccheck/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/salab/iccheck/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/salab/iccheck/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/salab/iccheck/compare/v0.5.0...v0.5.1
