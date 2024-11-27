@@ -27,13 +27,13 @@ func IntersectionCount(s1, s2 Set) int {
 	return cnt
 }
 
-type BigramSet = []int16
+type BigramSet = []uint16
 
 func Bigram(s []byte) BigramSet {
 	end := max(0, len(s)-1)
-	set := make([]int16, end)
+	set := make([]uint16, end)
 	for i := 0; i < end; i++ {
-		s0, s1 := int16(s[i]), int16(s[i+1])
+		s0, s1 := uint16(s[i]), uint16(s[i+1])
 		set[i] = s0 + (s1 << 8)
 	}
 	slices.Sort(set)
