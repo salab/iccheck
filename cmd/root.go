@@ -79,11 +79,11 @@ Finds inconsistent changes in your git changes.`, cli.GetFormattedVersion()),
 			}
 		}
 
-		fromTree, err := resolveTree(repo, fromRef)
+		fromTree, err := resolveTree(repo, fromRef, false)
 		if err != nil {
 			return errors.Wrap(err, "resolving base tree")
 		}
-		toTree, err := resolveTree(repo, toRef)
+		toTree, err := resolveTree(repo, toRef, true)
 		if err != nil {
 			return errors.Wrap(err, "resolving target tree")
 		}
@@ -275,7 +275,7 @@ func determineDefaultBranch(repo *git.Repository) (string, error) {
 
 const worktreeRef = "WORKTREE"
 
-func resolveTree(repo *git.Repository, ref string) (domain.Tree, error) {
+func resolveTree(repo *git.Repository, ref string, preload bool) (domain.Tree, error) {
 	// Special refs
 	if ref == worktreeRef {
 		worktree, err := repo.Worktree()
@@ -294,7 +294,7 @@ func resolveTree(repo *git.Repository, ref string) (domain.Tree, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "resolving commit from hash %v", *hash)
 	}
-	return domain.NewGoGitCommitTree(commit, ref), nil
+	return domain.NewGoGitCommitTree(commit, ref, preload), nil
 }
 
 func getPrinter() printer.Printer {

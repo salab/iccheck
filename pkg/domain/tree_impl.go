@@ -21,12 +21,19 @@ type goGitCommitTree struct {
 	commit *object.Commit
 	ref    string
 
-	// go-git's (*object).Commit does not allow concurrent read through File() for some reason
-	l sync.Mutex
+	files       map[string]*object.File
+	preloadOnce sync.Once
 }
 
-func NewGoGitCommitTree(commit *object.Commit, ref string) Tree {
-	return &goGitCommitTree{commit: commit, ref: ref}
+func NewGoGitCommitTree(commit *object.Commit, ref string, preload bool) Tree {
+	g := &goGitCommitTree{commit: commit, ref: ref}
+	if preload {
+		// go-git's (*object).Commit does not allow concurrent read through File() for some reason.
+		// So for performance reason, preload the internal tree cache entries before reading concurrently,
+		// to avoid concurrent map writes.
+		go g.preloadOnce.Do(g.preloadTreeCache)
+	}
+	return g
 }
 
 func (g *goGitCommitTree) String() string {
@@ -54,13 +61,36 @@ func (g *goGitCommitTree) FilterIgnoredChanges(changes merkletrie.Changes) merkl
 	return changes
 }
 
-func (g *goGitCommitTree) Reader(path string) (io.ReadCloser, error) {
-	g.l.Lock()
-	defer g.l.Unlock()
-
-	file, err := g.commit.File(path)
+func (g *goGitCommitTree) _preloadTreeCache() error {
+	s := NewSearcherFromTree(g)
+	files, err := s.Files()
 	if err != nil {
-		return nil, errors.Wrapf(err, "resolving file %v", path)
+		return err
+	}
+
+	g.files = make(map[string]*object.File)
+	for _, filename := range files {
+		file, err := g.commit.File(filename)
+		if err != nil {
+			return err
+		}
+		g.files[filename] = file
+	}
+	return nil
+}
+
+func (g *goGitCommitTree) preloadTreeCache() {
+	err := g._preloadTreeCache()
+	if err != nil {
+		panic("error preloading tree cache: " + err.Error())
+	}
+}
+
+func (g *goGitCommitTree) Reader(path string) (io.ReadCloser, error) {
+	g.preloadOnce.Do(g.preloadTreeCache)
+	file, ok := g.files[path]
+	if !ok {
+		return nil, fmt.Errorf("resolving file %v", path)
 	}
 	return file.Reader()
 }
