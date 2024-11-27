@@ -14,8 +14,6 @@ import (
 	"bytes"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
-	"github.com/go-git/go-git/v5/utils/merkletrie"
 	"github.com/go-git/go-git/v5/utils/merkletrie/noder"
 )
 
@@ -57,31 +55,6 @@ func diffTreeIsEquals(a, b noder.Hasher) bool {
 	}
 
 	return bytes.Equal(hashA, hashB)
-}
-
-func excludeIgnoredChanges(m gitignore.Matcher, changes merkletrie.Changes) merkletrie.Changes {
-	var res merkletrie.Changes
-	for _, ch := range changes {
-		var path []string
-		for _, n := range ch.To {
-			path = append(path, n.Name())
-		}
-		if len(path) == 0 {
-			for _, n := range ch.From {
-				path = append(path, n.Name())
-			}
-		}
-		if len(path) != 0 {
-			isDir := (len(ch.To) > 0 && ch.To.IsDir()) || (len(ch.From) > 0 && ch.From.IsDir())
-			if m.Match(path, isDir) {
-				if len(ch.From) == 0 {
-					continue
-				}
-			}
-		}
-		res = append(res, ch)
-	}
-	return res
 }
 
 // ----- Unexported functions from go-git above

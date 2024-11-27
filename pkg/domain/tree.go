@@ -30,8 +30,6 @@ type Tree interface {
 	Tree() (t *object.Tree, err error, ok bool)
 	// Noder returns noder.Noder for diffing changes from the other noder.Noder instance.
 	Noder() (noder.Noder, error)
-	// FilterIgnoredChanges SHOULD filter ignored changes (such as paths specified in .gitignore), if any.
-	FilterIgnoredChanges(changes merkletrie.Changes) merkletrie.Changes
 	// Reader returns io.ReadCloser to the file contents.
 	Reader(path string) (io.ReadCloser, error)
 }
@@ -139,9 +137,6 @@ func DiffTrees(base, target Tree) ([]fdiff.FilePatch, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "diffing nodes")
 	}
-
-	changes = base.FilterIgnoredChanges(changes) // maybe exclusion by base tree is not necessary
-	changes = target.FilterIgnoredChanges(changes)
 
 	filePatches, err := ds.MapError(changes, func(c merkletrie.Change) (fdiff.FilePatch, error) {
 		return changeToFilePatch(base, target, c)

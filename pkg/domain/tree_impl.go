@@ -6,13 +6,12 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/utils/merkletrie"
 	"github.com/go-git/go-git/v5/utils/merkletrie/filesystem"
 	"github.com/go-git/go-git/v5/utils/merkletrie/noder"
 	"github.com/pkg/errors"
-	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/samber/lo"
 	"io"
+	"os"
 	"strings"
 	"sync"
 )
@@ -22,16 +21,17 @@ type goGitCommitTree struct {
 	ref    string
 
 	files       map[string]*object.File
+	preload     bool
 	preloadOnce sync.Once
 }
 
 func NewGoGitCommitTree(commit *object.Commit, ref string, preload bool) Tree {
-	g := &goGitCommitTree{commit: commit, ref: ref}
-	if preload {
+	g := &goGitCommitTree{commit: commit, ref: ref, preload: preload}
+	if g.preload {
 		// go-git's (*object).Commit does not allow concurrent read through File() for some reason.
 		// So for performance reason, preload the internal tree cache entries before reading concurrently,
 		// to avoid concurrent map writes.
-		go g.preloadOnce.Do(g.preloadTreeCache)
+		g.preloadOnce.Do(g.preloadTreeCache)
 	}
 	return g
 }
@@ -41,6 +41,9 @@ func (g *goGitCommitTree) String() string {
 }
 
 func (g *goGitCommitTree) Tree() (t *object.Tree, err error, ok bool) {
+	if g.preload {
+		g.preloadOnce.Do(g.preloadTreeCache)
+	}
 	t, err = g.commit.Tree()
 	if err != nil {
 		return nil, errors.Wrap(err, "resolving commit tree"), false
@@ -49,6 +52,9 @@ func (g *goGitCommitTree) Tree() (t *object.Tree, err error, ok bool) {
 }
 
 func (g *goGitCommitTree) Noder() (noder.Noder, error) {
+	if g.preload {
+		g.preloadOnce.Do(g.preloadTreeCache)
+	}
 	cTree, err := g.commit.Tree()
 	if err != nil {
 		return nil, errors.Wrap(err, "resolving commit tree")
@@ -57,19 +63,22 @@ func (g *goGitCommitTree) Noder() (noder.Noder, error) {
 	return node, nil
 }
 
-func (g *goGitCommitTree) FilterIgnoredChanges(changes merkletrie.Changes) merkletrie.Changes {
-	return changes
-}
-
 func (g *goGitCommitTree) _preloadTreeCache() error {
-	s := NewSearcherFromTree(g)
-	files, err := s.Files()
+	cTree, err := g.commit.Tree()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "resolving commit tree")
 	}
 
 	g.files = make(map[string]*object.File)
-	for _, filename := range files {
+	walker := object.NewTreeWalker(cTree, true, nil)
+	for {
+		filename, entry, err := walker.Next()
+		if err != nil {
+			break
+		}
+		if !entry.Mode.IsFile() {
+			continue
+		}
 		file, err := g.commit.File(filename)
 		if err != nil {
 			return err
@@ -97,27 +106,50 @@ func (g *goGitCommitTree) Reader(path string) (io.ReadCloser, error) {
 
 type goGitIndexTree struct{} // TODO?
 
-type goGitWorktree struct {
-	worktree *git.Worktree
-	fs       billy.Filesystem
-
-	ignoreMatcher gitignore.Matcher
+// billyFSGitignore intercepts billy.Filesystem.Readdir() calls to filter out gitignore-d files.
+type billyFSGitignore struct {
+	billy.Filesystem
+	m gitignore.Matcher
 }
 
-func newGoGitWorkTree(worktree *git.Worktree, fs billy.Filesystem) (*goGitWorktree, error) {
+func NewBillyFSGitignore(fs billy.Filesystem) (billy.Filesystem, error) {
 	patterns, err := gitignore.ReadPatterns(fs, nil)
 	if err != nil {
 		return nil, err
 	}
-	patterns = append(patterns, worktree.Excludes...)
 	m := gitignore.NewMatcher(patterns)
+	return &billyFSGitignore{Filesystem: fs, m: m}, nil
+}
 
-	return &goGitWorktree{
-		worktree: worktree,
-		fs:       fs,
+func (b *billyFSGitignore) ReadDir(path string) ([]os.FileInfo, error) {
+	files, err := b.Filesystem.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+	elms := strings.Split(path, string(os.PathSeparator))
+	if path == "" {
+		elms = nil
+	}
+	files = lo.Reject(files, func(f os.FileInfo, _ int) bool {
+		return b.m.Match(append(elms, f.Name()), f.IsDir())
+	})
+	return files, nil
+}
 
-		ignoreMatcher: m,
-	}, nil
+type goGitWorktree struct {
+	worktree *git.Worktree
+}
+
+func newGoGitWorkTree(worktree *git.Worktree, fs billy.Filesystem) (*goGitWorktree, error) {
+	// TODO: Ignoring worktree directly by gitignore patterns results in invalid diff
+	// - that is, if git-tracked file is present in a gitignore-d directory and is checked out,
+	// ignoring that file by overlay will result in a 'deleted' diff.
+	fs, err := NewBillyFSGitignore(fs)
+	if err != nil {
+		return nil, err
+	}
+	worktree.Filesystem = fs
+	return &goGitWorktree{worktree: worktree}, nil
 }
 
 func NewGoGitWorkTree(worktree *git.Worktree) (Tree, error) {
@@ -137,63 +169,16 @@ func (g *goGitWorktree) Noder() (noder.Noder, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "getting submodules status")
 	}
-	node := filesystem.NewRootNode(g.fs, submodules)
-	return &filesystemGitignoreOverlay{
-		ignoreMatcher: g.ignoreMatcher,
-		pathPrefix:    nil,
-		Noder:         node,
-	}, nil
-}
-
-func (g *goGitWorktree) FilterIgnoredChanges(changes merkletrie.Changes) merkletrie.Changes {
-	return excludeIgnoredChanges(g.ignoreMatcher, changes)
+	node := filesystem.NewRootNode(g.worktree.Filesystem, submodules)
+	return node, nil
 }
 
 func (g *goGitWorktree) Reader(path string) (io.ReadCloser, error) {
-	file, err := g.fs.Open(path)
+	file, err := g.worktree.Filesystem.Open(path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "resolving file %v", path)
 	}
 	return file, nil
-}
-
-// filesystemGitignoreOverlay intercepts Children() (and NumChildren()) calls and
-// wraps their return values in order to prevent gitignore-d files and directories
-// from being listed in noder.Noder methods.
-//
-// Preventing gitignore-d files from being listed before being compared allows faster
-// comparison, and prevents unnecessary file accesses from occurring in case
-// there are files that should not be accessed in gitignore-d directories.
-type filesystemGitignoreOverlay struct {
-	ignoreMatcher gitignore.Matcher
-	pathPrefix    []string
-	noder.Noder
-}
-
-func (f *filesystemGitignoreOverlay) Children() ([]noder.Noder, error) {
-	children, err := f.Noder.Children()
-	if err != nil {
-		return nil, err
-	}
-	filtered := lo.Filter(children, func(n noder.Noder, _ int) bool {
-		return !f.ignoreMatcher.Match(append(f.pathPrefix, n.Name()), n.IsDir())
-	})
-	wrapped := ds.Map(filtered, func(n noder.Noder) noder.Noder {
-		return &filesystemGitignoreOverlay{
-			ignoreMatcher: f.ignoreMatcher,
-			pathPrefix:    append(ds.Copy(f.pathPrefix), n.Name()),
-			Noder:         n,
-		}
-	})
-	return wrapped, nil
-}
-
-func (f *filesystemGitignoreOverlay) NumChildren() (int, error) {
-	children, err := f.Children()
-	if err != nil {
-		return 0, err
-	}
-	return len(children), nil
 }
 
 type goGitWorktreeWithOverlay struct {
