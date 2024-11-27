@@ -3,6 +3,7 @@ package domain
 import (
 	"fmt"
 	"github.com/go-git/go-billy/v5"
+	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -107,13 +108,42 @@ func (g *goGitCommitTree) Reader(path string) (io.ReadCloser, error) {
 type goGitIndexTree struct{} // TODO?
 
 // billyFSGitignore intercepts billy.Filesystem.Readdir() calls to filter out gitignore-d files.
+//
+// TODO: Ignoring worktree directly by gitignore patterns results in invalid diff
+// - that is, if git-tracked file is present in a gitignore-d directory and is checked out,
+// ignoring that file by overlay will result in a 'deleted' diff.
 type billyFSGitignore struct {
 	billy.Filesystem
 	m gitignore.Matcher
 }
 
+func ReadSystemGitignore() ([]gitignore.Pattern, error) {
+	rootFs := osfs.New("/")
+	system, err := gitignore.LoadSystemPatterns(rootFs)
+	if err != nil {
+		return nil, err
+	}
+	user, err := gitignore.LoadGlobalPatterns(rootFs)
+	if err != nil {
+		return nil, err
+	}
+	return append(system, user...), nil
+}
+
+func appendSystemPatterns(fs billy.Filesystem) ([]gitignore.Pattern, error) {
+	systemPatterns, err := ReadSystemGitignore()
+	if err != nil {
+		return nil, err
+	}
+	repoPatterns, err := gitignore.ReadPatterns(fs, nil)
+	if err != nil {
+		return nil, err
+	}
+	return append(systemPatterns, repoPatterns...), nil
+}
+
 func NewBillyFSGitignore(fs billy.Filesystem) (billy.Filesystem, error) {
-	patterns, err := gitignore.ReadPatterns(fs, nil)
+	patterns, err := appendSystemPatterns(fs)
 	if err != nil {
 		return nil, err
 	}
@@ -141,9 +171,6 @@ type goGitWorktree struct {
 }
 
 func newGoGitWorkTree(worktree *git.Worktree, fs billy.Filesystem) (*goGitWorktree, error) {
-	// TODO: Ignoring worktree directly by gitignore patterns results in invalid diff
-	// - that is, if git-tracked file is present in a gitignore-d directory and is checked out,
-	// ignoring that file by overlay will result in a 'deleted' diff.
 	fs, err := NewBillyFSGitignore(fs)
 	if err != nil {
 		return nil, err

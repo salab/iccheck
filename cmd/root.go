@@ -206,6 +206,14 @@ func autoDetermineRefs(repo *git.Repository) (from, to string, err error) {
 		if err != nil {
 			return "", "", errors.Wrapf(err, "resolving worktree")
 		}
+		wt.Excludes, err = domain.ReadSystemGitignore()
+		if err != nil {
+			return "", "", errors.Wrapf(err, "reading system gitignore")
+		}
+		wt.Filesystem, err = domain.NewBillyFSGitignore(wt.Filesystem)
+		if err != nil {
+			return "", "", errors.Wrapf(err, "making overlay ignore")
+		}
 		st, err := wt.Status()
 		if err != nil {
 			return "", "", errors.Wrapf(err, "querying worktree status")
