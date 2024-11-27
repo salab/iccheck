@@ -209,7 +209,7 @@ func (h *handler) getCloneSets(ctx context.Context, gitPath string) ([]*domain.C
 	}
 
 	// Calculate
-	cloneSets, err := search.Search(ctx, headTree, targetTree, ignore)
+	cloneSets, err := search.Search(ctx, h.algorithm, headTree, targetTree, ignore)
 	if err != nil {
 		return nil, err
 	}

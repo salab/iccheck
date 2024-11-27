@@ -4,45 +4,53 @@ import (
 	"context"
 	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/fleccs"
-	"path/filepath"
-	"strings"
-
 	"github.com/salab/iccheck/pkg/ncdsearch"
 	"github.com/salab/iccheck/pkg/utils/ds"
-	"github.com/salab/iccheck/pkg/utils/files"
 )
 
-func ncdSearchOriginal(
-	basePath string,
-	filename string,
-	startL, endL int,
-) []domain.Clone {
-	res := ncdsearch.SearchOriginal(basePath, filename, startL, endL)
-	return ds.Map(res.Result, func(c *ncdsearch.OriginalOutClone) domain.Clone {
-		return domain.Clone{
-			Filename: strings.TrimPrefix(c.FileName, "/work/./"),
-			StartL:   c.StartLine,
-			EndL:     c.EndLine,
-			Distance: c.Distance,
-		}
-	})
+type AlgorithmFunc = func(
+	ctx context.Context,
+	sourceTree domain.Searcher,
+	sources []*domain.Source,
+	searchTree domain.Searcher,
+	ignore domain.IgnoreRules,
+) ([]*domain.Clone, error)
+
+var algorithms = map[string]AlgorithmFunc{
+	"fleccs":    fleccsSearchMulti,
+	"ncdsearch": ncdSearchReImpl,
 }
 
 func ncdSearchReImpl(
-	basePath string,
-	filename string,
-	startL, endL int,
-) ([]domain.Clone, error) {
-	fullPath := filepath.Join(basePath, filename)
-	query, err := files.ReadFileLines(fullPath, startL, endL)
+	ctx context.Context,
+	sourceTree domain.Searcher,
+	sources []*domain.Source,
+	searchTree domain.Searcher,
+	ignore domain.IgnoreRules,
+) ([]*domain.Clone, error) {
+	queries := ds.Map(sources, func(s *domain.Source) *ncdsearch.Query {
+		return &ncdsearch.Query{
+			Filename: s.Filename,
+			StartL:   s.StartL,
+			EndL:     s.EndL,
+		}
+	})
+
+	clones, err := ncdsearch.Search(
+		ctx,
+		sourceTree,
+		queries,
+		searchTree,
+		ignore,
+		ncdsearch.WithSearchThreshold(0.3),
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	clones := ncdsearch.Search(query, basePath, ncdsearch.WithSearchThreshold(0.3))
-	return ds.Map(clones, func(c ncdsearch.Clone) domain.Clone {
-		return domain.Clone{
-			Filename: strings.TrimPrefix(c.Filename, basePath+"/"),
+	return ds.Map(clones, func(c *ncdsearch.Clone) *domain.Clone {
+		return &domain.Clone{
+			Filename: c.Filename,
 			StartL:   c.StartLine,
 			EndL:     c.EndLine,
 			Distance: c.Distance,

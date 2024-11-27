@@ -27,6 +27,7 @@ type handler struct {
 	previousDiagnostics ds.SyncMap[string, []string]
 	previousAnalysis    ds.SyncMap[string, []*domain.CloneSet]
 
+	algorithm string
 	timeout   time.Duration
 	rootPath  string
 	openFiles ds.SyncMap[string, string]
@@ -41,11 +42,13 @@ const targetUtilization = 0.25
 const bucketCapacitySeconds = 30
 
 func NewHandler(
+	algorithm string,
 	timeout time.Duration,
 	ignoreCLIOptions []string,
 	disableDefaultIgnore bool,
 ) jsonrpc2.Handler {
 	h := &handler{
+		algorithm: algorithm,
 		timeout:   timeout,
 		limiter:   leakybucket.NewLeakyBucket(targetUtilization*1000, bucketCapacitySeconds*1000), // in milliseconds
 		openFiles: ds.SyncMap[string, string]{},

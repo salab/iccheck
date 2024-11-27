@@ -181,6 +181,7 @@ func filterMissingChanges(cloneSets [][]*domain.Clone, actualPatches []*chunk) [
 
 func Search(
 	ctx context.Context,
+	algorithmName string,
 	fromTree, toTree domain.Tree,
 	ignore domain.IgnoreRules,
 ) ([]*domain.CloneSet, error) {
@@ -294,7 +295,11 @@ func Search(
 
 	// Search for clones
 	slog.Info(fmt.Sprintf("%d change chunk(s) within %d file(s) found.", len(queries), len(filePatches)), "from", fromTree, "to", toTree)
-	toClones, err := fleccsSearchMulti(ctx, toSearcher, queries, toSearcher, ignore)
+	algorithmFn, ok := algorithms[algorithmName]
+	if !ok {
+		return nil, fmt.Errorf("invalid algorithm name: %v", algorithmName)
+	}
+	toClones, err := algorithmFn(ctx, toSearcher, queries, toSearcher, ignore)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching for clones")
 	}

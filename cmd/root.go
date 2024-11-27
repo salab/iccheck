@@ -21,8 +21,8 @@ import (
 	"github.com/salab/iccheck/pkg/utils/cli"
 )
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
+// RootCmd represents the base command when called without any subcommands
+var RootCmd = &cobra.Command{
 	Use:   "iccheck",
 	Short: "Finds inconsistent changes in your git changes",
 	Long: fmt.Sprintf(`ICCheck %v
@@ -89,7 +89,7 @@ Finds inconsistent changes in your git changes.`, cli.GetFormattedVersion()),
 		}
 
 		// Search for inconsistent changes
-		cloneSets, err := search.Search(ctx, fromTree, toTree, ignore)
+		cloneSets, err := search.Search(ctx, algorithm, fromTree, toTree, ignore)
 		if err != nil {
 			return err
 		}
@@ -110,10 +110,8 @@ Finds inconsistent changes in your git changes.`, cli.GetFormattedVersion()),
 		fmt.Print(string(out))
 
 		// If any inconsistent changes are found, exit with specified code
-		if len(cloneSets) > 0 {
+		if len(cloneSets) > 0 && failCode != 0 {
 			os.Exit(failCode)
-		} else {
-			os.Exit(0)
 		}
 		return nil
 	},
@@ -122,7 +120,7 @@ Finds inconsistent changes in your git changes.`, cli.GetFormattedVersion()),
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	err := rootCmd.Execute()
+	err := RootCmd.Execute()
 	if err != nil {
 		os.Exit(1)
 	}
@@ -132,6 +130,8 @@ var (
 	repoDir string
 	fromRef string
 	toRef   string
+
+	algorithm string
 
 	logLevel       string
 	formatType     string
@@ -145,24 +145,26 @@ var (
 )
 
 func init() {
-	rootCmd.Flags().StringVarP(&repoDir, "repo", "r", "", "Source git directory (supports bare)")
-	rootCmd.Flags().StringVarP(&fromRef, "from", "f", "", "Base git ref to compare against. Usually earlier in time.")
-	rootCmd.Flags().StringVarP(&toRef, "to", "t", "", `Target git ref to compare from. Usually later in time.
+	RootCmd.Flags().StringVarP(&repoDir, "repo", "r", "", "Source git directory (supports bare)")
+	RootCmd.Flags().StringVarP(&fromRef, "from", "f", "", "Base git ref to compare against. Usually earlier in time.")
+	RootCmd.Flags().StringVarP(&toRef, "to", "t", "", `Target git ref to compare from. Usually later in time.
 Can accept special value "WORKTREE" to specify the current worktree.`)
 
-	rootCmd.Flags().StringVar(&logLevel, "log-level", "", "Log level (debug, info, warn, error)")
-	rootCmd.Flags().StringVar(&formatType, "format", "console", "Format type (console, json, github)")
-	rootCmd.Flags().IntVar(&failCode, "fail-code", 0, "Exit code if it detects any inconsistent changes")
-	rootCmd.Flags().IntVar(&timeoutSeconds, "timeout-seconds", 15, "Timeout for detecting clones in seconds")
+	RootCmd.Flags().StringVar(&logLevel, "log-level", "", "Log level (debug, info, warn, error)")
+	RootCmd.Flags().StringVar(&formatType, "format", "console", "Format type (console, json, github)")
+	RootCmd.Flags().IntVar(&failCode, "fail-code", 0, "Exit code if it detects any inconsistent changes")
+	RootCmd.Flags().IntVar(&timeoutSeconds, "timeout-seconds", 15, "Timeout for detecting clones in seconds")
 
-	rootCmd.PersistentFlags().StringArrayVar(&ignoreCLIOptions, "ignore", nil, `Regexp of file paths (and its contents) to ignore.
+	RootCmd.PersistentFlags().StringVar(&algorithm, "algorithm", "fleccs", "Clone search algorithm to use (fleccs, ncdsearch)")
+
+	RootCmd.PersistentFlags().StringArrayVar(&ignoreCLIOptions, "ignore", nil, `Regexp of file paths (and its contents) to ignore.
 If specifying both file paths and contents ignore regexp, split them by ':'.
 Example (ignore dist directory): --ignore '^dist/'
 Example (ignore import statements in js files): --ignore '\.m?[jt]s$:^import'`)
-	rootCmd.PersistentFlags().BoolVar(&disableDefaultIgnore, "disable-default-ignore", false, "Disable default ignore configs")
+	RootCmd.PersistentFlags().BoolVar(&disableDefaultIgnore, "disable-default-ignore", false, "Disable default ignore configs")
 
-	rootCmd.CompletionOptions.DisableDefaultCmd = true
-	rootCmd.AddCommand(lspCmd)
+	RootCmd.CompletionOptions.DisableDefaultCmd = true
+	RootCmd.AddCommand(lspCmd)
 }
 
 func autoDetermineLogLevel() string {

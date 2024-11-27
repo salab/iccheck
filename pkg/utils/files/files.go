@@ -2,7 +2,6 @@ package files
 
 import (
 	"bytes"
-	"github.com/pkg/errors"
 	"io"
 	"os"
 	"strings"
@@ -45,24 +44,6 @@ func LineIndices(s []byte) []int {
 	}
 
 	return indices
-}
-
-func ReadFileLines(filename string, startLine, endLine int) ([]byte, error) {
-	content, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, errors.Wrapf(err, "reading file contents %v", filename)
-	}
-	indices := LineIndices(content)
-
-	var startIdx, endIdx int
-	startIdx = indices[startLine]
-	if endLine == len(indices)-1 {
-		endIdx = len(content)
-	} else {
-		endIdx = indices[endLine+1]
-	}
-
-	return content[startIdx:endIdx], nil
 }
 
 func ReadAll(reader io.ReadCloser, err error) ([]byte, error) {

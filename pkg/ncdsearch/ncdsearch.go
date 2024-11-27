@@ -6,13 +6,14 @@
 package ncdsearch
 
 import (
+	"context"
 	"fmt"
+	"github.com/pkg/errors"
+	"github.com/salab/iccheck/pkg/domain"
+	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/samber/lo"
 	"github.com/sourcegraph/conc/pool"
-	"io/fs"
 	"math"
-	"os"
-	"path/filepath"
 	"runtime"
 	"slices"
 	"sort"
@@ -91,8 +92,15 @@ type Clone struct {
 	Distance  float64
 }
 
-func codeSearch(q []byte, windowSize int, threshold float64, file []byte, filename string, tokenize TokenizeFunc) (clones []Clone) {
-	clones = make([]Clone, 0)
+func codeSearch(
+	q []byte,
+	windowSize int,
+	threshold float64,
+	file []byte,
+	filename string,
+	tokenize TokenizeFunc,
+	ignoreRule *domain.IgnoreLineRule,
+) (clones []*Clone) {
 	lzSetQ := extractLZSet(q)
 
 	tokenIndices := tokenIndices(file, tokenize)
@@ -118,9 +126,13 @@ func codeSearch(q []byte, windowSize int, threshold float64, file []byte, filena
 
 		kBest, distance := compareLZJD(b, pos, lzSetQ)
 		if distance < threshold {
-			clones = append(clones, Clone{
+			startLine := getLine(tokenStartIdx)
+			if canSkip, _ := ignoreRule.CanSkip(startLine, windowSize); canSkip {
+				continue
+			}
+			clones = append(clones, &Clone{
 				Filename:  filename,
-				StartLine: getLine(tokenStartIdx),
+				StartLine: startLine,
 				EndLine:   getLine(tokenEndIdx), // TODO: get accurate end line
 				KBest:     kBest,
 				Distance:  distance,
@@ -128,56 +140,148 @@ func codeSearch(q []byte, windowSize int, threshold float64, file []byte, filena
 		}
 	}
 
-	return clones
+	return
 }
 
-func Search(query []byte, searchRoot string, options ...ConfigFunc) []Clone {
+func fileSearch(
+	ctx context.Context,
+	c *config,
+	queries []*Query,
+	searchTree domain.Searcher,
+	searchFilename string,
+	ignore domain.IgnoreRules,
+) ([]*Clone, error) {
+	if ctx.Err() != nil { // check for deadline
+		return nil, ctx.Err()
+	}
+
+	searchFile, err := searchTree.Open(searchFilename)
+	if err != nil {
+		return nil, errors.Wrapf(err, "opening search target file %v", searchFilename)
+	}
+
+	// Skip binary file search because it is rarely needed and consumes cpu
+	isBinary, err := searchFile.IsBinary()
+	if err != nil {
+		return nil, errors.Wrapf(err, "calculating binary status of search target file %v", searchFilename)
+	}
+	if isBinary {
+		return nil, nil
+	}
+
+	fileContent, err := searchFile.Content()
+	if err != nil {
+		return nil, errors.Wrapf(err, "reading search target file %v", searchFilename)
+	}
+
+	// Check ignore settings
+	skipEntireFile, ignoreRule := ignore.Match(searchFilename, fileContent)
+	if skipEntireFile {
+		return nil, nil
+	}
+
+	var clones []*Clone
+	for _, q := range queries {
+		if ctx.Err() != nil { // check for deadline
+			return nil, ctx.Err()
+		}
+
+		filterSim := overlap(c.overlapNGram, q.contents, fileContent)
+		if filterSim < c.filterThreshold {
+			return nil, nil
+		}
+		result := codeSearch(
+			q.contents,
+			q.windowSize,
+			c.searchThreshold,
+			fileContent,
+			searchFilename,
+			c.tokenize,
+			ignoreRule,
+		)
+		clones = append(clones, result...)
+	}
+
+	return clones, nil
+}
+
+type Query struct {
+	Filename     string
+	StartL, EndL int
+
+	contents   []byte
+	lzSet      lzSet
+	windowSize int
+}
+
+func (q *Query) readContents(c *config, queryTree domain.Searcher) error {
+	f, err := queryTree.Open(q.Filename)
+	if err != nil {
+		return err
+	}
+	fileContents, err := f.Content()
+	if err != nil {
+		return err
+	}
+	lineIndices := files.LineIndices(fileContents)
+	if len(lineIndices) < q.EndL {
+		return fmt.Errorf("unexpected too short file %v", q.Filename)
+	}
+
+	// StartL and EndL are 1-indexed
+	if len(lineIndices) == q.EndL {
+		q.contents = fileContents[lineIndices[q.StartL-1]:]
+	} else {
+		q.contents = fileContents[lineIndices[q.StartL-1]:lineIndices[q.EndL-1]]
+	}
+
+	q.lzSet = extractLZSet(q.contents)
+	q.windowSize = int(math.Floor(c.windowSizeMult * float64(len(c.tokenize(q.contents)))))
+
+	return nil
+}
+
+func Search(
+	ctx context.Context,
+	queriesTree domain.Searcher,
+	queries []*Query,
+	searchTree domain.Searcher,
+	ignore domain.IgnoreRules,
+	options ...ConfigFunc,
+) ([]*Clone, error) {
 	c := applyConfig(options...)
 
-	lzSetQ := extractLZSet(query)
-	windowSize := int(math.Floor(c.windowSizeMult * float64(len(c.tokenize(query)))))
-	fmt.Println("lzSetQ", lzSetQ)
-	fmt.Println("windowSize", windowSize)
-
-	files := make([]string, 0)
-	lo.Must0(filepath.WalkDir(searchRoot, func(path string, d fs.DirEntry, err error) error {
-		if d.IsDir() {
-			return nil
+	// Read actual bytes of the queries and calculate lz set
+	for _, q := range queries {
+		err := q.readContents(c, queriesTree)
+		if err != nil {
+			return nil, errors.Wrapf(err, "reading contents of query")
 		}
-		files = append(files, path)
-		return nil
-	}))
+	}
 
-	var clones []Clone
-	cloneCh := make(chan []Clone)
-	go func() {
-		for detected := range cloneCh {
-			clones = append(clones, detected...)
-		}
-	}()
-	p := pool.New().WithMaxGoroutines(runtime.NumCPU())
-	for _, filename := range files {
-		p.Go(func() {
-			file := lo.Must(os.ReadFile(filename))
-			filterSim := overlap(c.overlapNGram, query, file)
-			//fmt.Printf("%v overlap: %v\n", filename, filterSim)
-			if filterSim < c.filterThreshold {
-				return
-			}
-			cloneCh <- codeSearch(query, windowSize, c.searchThreshold, file, filename, c.tokenize)
+	// List all file names from search root directory
+	searchFiles, err := searchTree.Files()
+	if err != nil {
+		return nil, errors.Wrap(err, "listing search tree files")
+	}
+
+	p := pool.NewWithResults[[]*Clone]().
+		WithMaxGoroutines(runtime.NumCPU()).
+		WithErrors().
+		WithContext(ctx).
+		WithCancelOnError().
+		WithFirstError()
+	for _, searchFile := range searchFiles {
+		p.Go(func(ctx context.Context) ([]*Clone, error) {
+			return fileSearch(ctx, c, queries, searchTree, searchFile, ignore)
 		})
 	}
-	p.Wait()
-	close(cloneCh)
+	results, err := p.Wait()
+	if err != nil {
+		return nil, err
+	}
+	clones := lo.Flatten(results)
 
-	slices.SortFunc(clones, func(a, b Clone) int {
-		if a.Distance < b.Distance {
-			return 1
-		}
-		if b.Distance < a.Distance {
-			return -1
-		}
-		return 0
-	})
-	return clones
+	slices.SortFunc(clones, ds.SortDesc(func(c *Clone) float64 { return c.Distance }))
+	return clones, nil
 }

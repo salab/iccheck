@@ -28,6 +28,7 @@ Starts ICCheck Language Server.`, cli.GetFormattedVersion()),
 		// Code is partially copied from https://github.com/vito/bass/blob/main/cmd/bass/lsp.go
 		ctx := context.Background()
 		handler := lsp.NewHandler(
+			algorithm,
 			time.Duration(lspTimeoutSeconds)*time.Second,
 			ignoreCLIOptions,
 			disableDefaultIgnore,
