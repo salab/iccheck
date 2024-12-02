@@ -202,17 +202,9 @@ func autoDetermineRefs(repo *git.Repository) (from, to string, err error) {
 
 	if !isBare {
 		// Let's see if there are any local changes on worktree
-		wt, err := repo.Worktree()
+		wt, err := domain.NewGoGitWorkTree(repo)
 		if err != nil {
-			return "", "", errors.Wrapf(err, "resolving worktree")
-		}
-		wt.Excludes, err = domain.ReadSystemGitignore()
-		if err != nil {
-			return "", "", errors.Wrapf(err, "reading system gitignore")
-		}
-		wt.Filesystem, err = domain.NewBillyFSGitignore(wt.Filesystem)
-		if err != nil {
-			return "", "", errors.Wrapf(err, "making overlay ignore")
+			return "", "", errors.Wrapf(err, "getting worktree")
 		}
 		st, err := wt.Status()
 		if err != nil {
@@ -286,11 +278,7 @@ const worktreeRef = "WORKTREE"
 func resolveTree(repo *git.Repository, ref string, preload bool) (domain.Tree, error) {
 	// Special refs
 	if ref == worktreeRef {
-		worktree, err := repo.Worktree()
-		if err != nil {
-			return nil, errors.Wrap(err, "retrieving worktree")
-		}
-		return domain.NewGoGitWorkTree(worktree)
+		return domain.NewGoGitWorkTree(repo)
 	}
 
 	// Normal git ref

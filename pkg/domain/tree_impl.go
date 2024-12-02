@@ -108,13 +108,17 @@ func (g *goGitCommitTree) Reader(path string) (io.ReadCloser, error) {
 type goGitIndexTree struct{} // TODO?
 
 // billyFSGitignore intercepts billy.Filesystem.Readdir() calls to filter out gitignore-d files.
-//
-// TODO: Ignoring worktree directly by gitignore patterns results in invalid diff
-// - that is, if git-tracked file is present in a gitignore-d directory and is checked out,
-// ignoring that file by overlay will result in a 'deleted' diff.
 type billyFSGitignore struct {
 	billy.Filesystem
+
 	m gitignore.Matcher
+	// NOTE: Ignoring worktree directly by gitignore patterns results in invalid diff
+	// - that is, if git-tracked file is present in a gitignore-d directory and is checked out,
+	// ignoring that file by overlay will result in a 'deleted' diff.
+	// To cope with this problem, if there exists a tracked file or directory in a commit tree we're comparing with,
+	// do NOT mark that file or directory and return that as it is.
+	// If the file is to be ignored, it will be filtered after the tree diffing in Status() method and such.
+	commitTree *object.Tree
 }
 
 func ReadSystemGitignore() ([]gitignore.Pattern, error) {
@@ -142,13 +146,13 @@ func appendSystemPatterns(fs billy.Filesystem) ([]gitignore.Pattern, error) {
 	return append(systemPatterns, repoPatterns...), nil
 }
 
-func NewBillyFSGitignore(fs billy.Filesystem) (billy.Filesystem, error) {
+func NewBillyFSGitignore(fs billy.Filesystem, commitTree *object.Tree) (billy.Filesystem, error) {
 	patterns, err := appendSystemPatterns(fs)
 	if err != nil {
 		return nil, err
 	}
 	m := gitignore.NewMatcher(patterns)
-	return &billyFSGitignore{Filesystem: fs, m: m}, nil
+	return &billyFSGitignore{Filesystem: fs, m: m, commitTree: commitTree}, nil
 }
 
 func (b *billyFSGitignore) ReadDir(path string) ([]os.FileInfo, error) {
@@ -161,37 +165,71 @@ func (b *billyFSGitignore) ReadDir(path string) ([]os.FileInfo, error) {
 		elms = nil
 	}
 	files = lo.Reject(files, func(f os.FileInfo, _ int) bool {
-		return b.m.Match(append(elms, f.Name()), f.IsDir())
+		ignoreMatch := b.m.Match(append(elms, f.Name()), f.IsDir())
+		if !ignoreMatch {
+			return false
+		}
+		if _, err := b.commitTree.FindEntry(path + string(os.PathSeparator) + f.Name()); err == nil {
+			// File exists in HEAD tree we're differencing against - do NOT mark this as ignored.
+			return false
+		}
+		return true
 	})
 	return files, nil
 }
 
-type goGitWorktree struct {
+func getHeadTree(repo *git.Repository) (*object.Tree, error) {
+	headHash, err := repo.ResolveRevision("HEAD")
+	if err != nil {
+		return nil, errors.Wrap(err, "resolving HEAD ref")
+	}
+	headCommit, err := repo.CommitObject(*headHash)
+	if err != nil {
+		return nil, errors.Wrap(err, "resolving HEAD commit")
+	}
+	headTree, err := headCommit.Tree()
+	if err != nil {
+		return nil, errors.Wrap(err, "resolving HEAD tree")
+	}
+	return headTree, nil
+}
+
+type GoGitWorktree struct {
 	worktree *git.Worktree
 }
 
-func newGoGitWorkTree(worktree *git.Worktree, fs billy.Filesystem) (*goGitWorktree, error) {
-	fs, err := NewBillyFSGitignore(fs)
+func NewGoGitWorkTree(repo *git.Repository) (*GoGitWorktree, error) {
+	worktree, err := repo.Worktree()
+	if err != nil {
+		return nil, err
+	}
+	headTree, err := getHeadTree(repo)
+	if err != nil {
+		return nil, err
+	}
+
+	worktree.Excludes, err = ReadSystemGitignore()
+	if err != nil {
+		return nil, err
+	}
+
+	fs, err := NewBillyFSGitignore(worktree.Filesystem, headTree)
 	if err != nil {
 		return nil, err
 	}
 	worktree.Filesystem = fs
-	return &goGitWorktree{worktree: worktree}, nil
+	return &GoGitWorktree{worktree: worktree}, nil
 }
 
-func NewGoGitWorkTree(worktree *git.Worktree) (Tree, error) {
-	return newGoGitWorkTree(worktree, worktree.Filesystem)
-}
-
-func (g *goGitWorktree) String() string {
+func (g *GoGitWorktree) String() string {
 	return "WORKTREE"
 }
 
-func (g *goGitWorktree) Tree() (t *object.Tree, err error, ok bool) {
+func (g *GoGitWorktree) Tree() (t *object.Tree, err error, ok bool) {
 	return nil, nil, false
 }
 
-func (g *goGitWorktree) Noder() (noder.Noder, error) {
+func (g *GoGitWorktree) Noder() (noder.Noder, error) {
 	submodules, err := getSubmodulesStatus(g.worktree)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting submodules status")
@@ -200,7 +238,7 @@ func (g *goGitWorktree) Noder() (noder.Noder, error) {
 	return node, nil
 }
 
-func (g *goGitWorktree) Reader(path string) (io.ReadCloser, error) {
+func (g *GoGitWorktree) Reader(path string) (io.ReadCloser, error) {
 	file, err := g.worktree.Filesystem.Open(path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "resolving file %v", path)
@@ -208,8 +246,12 @@ func (g *goGitWorktree) Reader(path string) (io.ReadCloser, error) {
 	return file, nil
 }
 
+func (g *GoGitWorktree) Status() (git.Status, error) {
+	return g.worktree.Status()
+}
+
 type goGitWorktreeWithOverlay struct {
-	*goGitWorktree
+	*GoGitWorktree
 }
 
 // billyFSOverlay intercepts Open() calls to billy.Filesystem
@@ -247,14 +289,15 @@ func (f *billyInMemoryFile) Close() error {
 	return nil
 }
 
-func NewGoGitWorktreeWithOverlay(worktree *git.Worktree, overlay map[string]string) (Tree, error) {
-	fs := &billyFSOverlay{Filesystem: worktree.Filesystem, overlay: overlay}
-	tree, err := newGoGitWorkTree(worktree, fs)
+func NewGoGitWorktreeWithOverlay(repo *git.Repository, overlay map[string]string) (Tree, error) {
+	tree, err := NewGoGitWorkTree(repo)
 	if err != nil {
 		return nil, err
 	}
+	fs := &billyFSOverlay{Filesystem: tree.worktree.Filesystem, overlay: overlay}
+	tree.worktree.Filesystem = fs
 	return &goGitWorktreeWithOverlay{
-		goGitWorktree: tree,
+		GoGitWorktree: tree,
 	}, nil
 }
 
