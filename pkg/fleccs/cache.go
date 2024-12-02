@@ -1,11 +1,23 @@
 package fleccs
 
 import (
+	"context"
 	"github.com/dgraph-io/ristretto/v2"
+	"github.com/motoki317/sc"
+	"github.com/salab/iccheck/pkg/domain"
 	"github.com/samber/lo"
 	"time"
 	"unsafe"
 )
+
+type searchFileCtxKey struct{}
+
+var searchFileCtx searchFileCtxKey
+
+var isBinaryCache = sc.NewMust(func(ctx context.Context, filename string) (bool, error) {
+	searchFile := ctx.Value(searchFileCtx).(domain.SearcherFile)
+	return searchFile.IsBinary()
+}, time.Minute, 2*time.Minute)
 
 // cache kicks in only when searching for multiple times in the same process.
 // Currently, LSP server takes advantage of this.

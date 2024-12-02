@@ -180,7 +180,7 @@ func fileSearch(
 	}
 
 	// Skip binary file search because it is rarely needed and consumes cpu
-	isBinary, err := searchFile.IsBinary()
+	isBinary, err := isBinaryCache.Get(context.WithValue(ctx, searchFileCtx, searchFile), searchFilename)
 	if err != nil {
 		return nil, errors.Wrapf(err, "calculating binary status of search target file %v", searchFilename)
 	}
