@@ -255,7 +255,7 @@ type goGitWorktreeWithOverlay struct {
 }
 
 // billyFSOverlay intercepts Open() calls to billy.Filesystem
-// for use with filesystem.NewRootNode and Tree.ReadFile methods.
+// for use with filesystem.NewRootNode and Tree.Reader methods.
 type billyFSOverlay struct {
 	billy.Filesystem
 	overlay map[string]string
