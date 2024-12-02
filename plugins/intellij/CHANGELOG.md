@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+## [0.7.2] - 2024-12-02
+
+- b846b32a8d8b9653d8448263569098c1588777d5 v0.7.2
+- 50c7c71832873a8ae993c26a26402a359c2c1866 perf(lsp): Cache IsBinary() calculation
+- f59ad839626978b48ebffc2277770bd4ee5da1b0 chores: Fix doc
+- fc7f13af2f159c5cd2accc27b65ec623733ee263 chores: Improve logging
+- eb2c65fcab261eadae0e50eb840753103990783f fix: Renamed file detection was not working
+- 31d9aaa976d3c13a643a999ebdabc88a7d3f90b9 chores: Add --version command / update README
+- 7e68edc1d14be0ebc1bf1b305787453d539e73e3 fix: Use HEAD tree to correctly calculate status/diff
+- 73bf191c015bf296d6d7e2b1bf243624a96de911 Merge pull request #14 from salab/intellij-changelog-update-0.7.1
+- b2d1f3f11f6fd8ab2a9e8a6843d42bb4c74e41f0 IntelliJ Changelog Update - 0.7.1
+
 ## [0.7.1] - 2024-11-27
 
 - 7bcdf4a70c22ece3d99632baa87d8063a447092b v0.7.1
@@ -143,7 +155,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/salab/iccheck/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/salab/iccheck/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/salab/iccheck/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/salab/iccheck/compare/v0.5.1...v0.6.0
