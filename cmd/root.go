@@ -27,6 +27,7 @@ var RootCmd = &cobra.Command{
 	Short: "Finds inconsistent changes in your git changes",
 	Long: fmt.Sprintf(`ICCheck %v
 Finds inconsistent changes in your git changes.`, cli.GetFormattedVersion()),
+	Version:      cli.GetFormattedVersion(),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(timeoutSeconds))

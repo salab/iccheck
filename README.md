@@ -71,6 +71,7 @@ Available Commands:
   lsp         Starts ICCheck Language Server
 
 Flags:
+      --algorithm string         Clone search algorithm to use (fleccs, ncdsearch) (default "fleccs")
       --disable-default-ignore   Disable default ignore configs
       --fail-code int            Exit code if it detects any inconsistent changes
       --format string            Format type (console, json, github) (default "console")
@@ -85,6 +86,7 @@ Flags:
       --timeout-seconds int      Timeout for detecting clones in seconds (default 15)
   -t, --to string                Target git ref to compare from. Usually later in time.
                                  Can accept special value "WORKTREE" to specify the current worktree.
+  -v, --version                  version for iccheck
 
 Use "iccheck [command] --help" for more information about a command.
 ```
