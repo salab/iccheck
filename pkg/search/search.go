@@ -24,8 +24,10 @@ var (
 )
 
 type chunk struct {
-	filename string
-	kind     changeKind
+	beforeFilename string
+	afterFilename  string
+
+	kind changeKind
 
 	beforeStartL int
 	beforeEndL   int
@@ -33,19 +35,27 @@ type chunk struct {
 	afterEndL    int
 }
 
-func (c *chunk) searchQueryLines() (startL, endL int) {
-	return c.afterStartL, c.afterEndL
+func (c *chunk) searchQuery() *domain.Source {
+	return &domain.Source{
+		Filename: c.afterFilename,
+		StartL:   c.afterStartL,
+		EndL:     c.afterEndL,
+	}
 }
 
 type chunkTracker struct {
-	filename string
-	chunks   []*chunk
+	beforeFilename string
+	afterFilename  string
+
+	chunks []*chunk
 }
 
 func (t *chunkTracker) recordChunk(kind changeKind, beforeStartL, beforeEndL, afterStartL, afterEndL int) {
 	t.chunks = append(t.chunks, &chunk{
-		filename: t.filename,
-		kind:     kind,
+		beforeFilename: t.beforeFilename,
+		afterFilename:  t.afterFilename,
+
+		kind: kind,
 
 		beforeStartL: beforeStartL,
 		beforeEndL:   beforeEndL,
@@ -152,13 +162,13 @@ func findCloneSets(clones []*domain.Clone, sources []*domain.Source) (sets [][]*
 }
 
 func filterMissingChanges(cloneSets [][]*domain.Clone, actualPatches []*chunk) []*domain.CloneSet {
-	perFile := lo.GroupBy(actualPatches, func(p *chunk) string { return p.filename })
+	perFile := lo.GroupBy(actualPatches, func(c *chunk) string { return c.searchQuery().Filename })
 	isChanged := func(c *domain.Clone) bool {
-		filePatches := perFile[c.Filename]
+		patchChunks := perFile[c.Filename]
 		// Is the clone changed by any of the patch chunks?
-		for _, p := range filePatches {
-			startL, endL := p.searchQueryLines()
-			hasOverlap := c.StartL <= endL && startL <= c.EndL
+		for _, p := range patchChunks {
+			q := p.searchQuery()
+			hasOverlap := c.StartL <= q.EndL && q.StartL <= c.EndL
 			if hasOverlap {
 				return true
 			}
@@ -192,20 +202,31 @@ func Search(
 	}
 
 	// Calculate the chunks
-	chunkTrackers := make(map[string]*chunkTracker)
+	var patchChunks []*chunk
 	for _, filePatch := range filePatches {
 		from, to := filePatch.Files()
-		// Only handle file modifications (or renames)
-		// TODO: handle file deletion (target lines are deleted lines)
-		// TODO: handle file addition (target line to be determined)
-		if from == nil || to == nil {
+		slog.Debug("File patch", "from", from, "to", to)
+
+		// Only handle non-binary patches
+		if filePatch.IsBinary() {
 			continue
+		}
+
+		// Only handle file modifications (or renames) and additions
+		// When handling file additions, target lines are the added lines itself
+		if to == nil {
+			// File was deleted
+			continue
+		}
+
+		tracker := &chunkTracker{afterFilename: to.Path()}
+		if from != nil {
+			tracker.beforeFilename = from.Path()
 		}
 
 		// Categorize file patch chunks (equal, add, delete) into
 		// patch categories (add, delete, modification)
 		chunks := filePatch.Chunks()
-		chunkTrackers[from.Path()] = &chunkTracker{filename: from.Path()}
 		fromFileL, toFileL := 1, 1
 		for i := 0; i < len(chunks); i++ {
 			// Did the chunk undergo a modification?
@@ -218,7 +239,7 @@ func Search(
 				additionLines := strings.Count(addition.Content(), "\n")
 				deletionLines := strings.Count(deletion.Content(), "\n")
 
-				chunkTrackers[from.Path()].recordChunk(
+				tracker.recordChunk(
 					changeKindModification,
 					fromFileL, fromFileL+deletionLines-1,
 					toFileL, toFileL+additionLines-1,
@@ -227,7 +248,7 @@ func Search(
 				fromFileL += deletionLines
 				toFileL += additionLines
 
-				i++ // Increase i by 2
+				i++ // Advance i by 2 in next loop
 				continue
 			}
 
@@ -235,7 +256,7 @@ func Search(
 			lines := strings.Count(chunk.Content(), "\n")
 			switch chunk.Type() {
 			case diff.Equal:
-				chunkTrackers[from.Path()].recordChunk(
+				tracker.recordChunk(
 					changeKindEqual,
 					fromFileL, fromFileL+lines-1,
 					toFileL, toFileL+lines-1,
@@ -244,7 +265,7 @@ func Search(
 				fromFileL += lines
 				toFileL += lines
 			case diff.Add:
-				chunkTrackers[to.Path()].recordChunk(
+				tracker.recordChunk(
 					changeKindAddition,
 					fromFileL-1, fromFileL-1,
 					toFileL, toFileL+lines-1,
@@ -252,7 +273,7 @@ func Search(
 
 				toFileL += lines
 			case diff.Delete:
-				chunkTrackers[from.Path()].recordChunk(
+				tracker.recordChunk(
 					changeKindDeletion,
 					fromFileL, fromFileL+lines-1,
 					toFileL-1, toFileL-1,
@@ -263,29 +284,12 @@ func Search(
 				panic(fmt.Sprintf("unknown chunk type: %v", chunk.Type()))
 			}
 		}
-	}
 
-	patchChunks := ds.FlatMap(lo.Values(chunkTrackers), func(c *chunkTracker) []*chunk {
-		return c.patches()
-	})
-	slog.Debug("Detected patch chunks", "patches", len(patchChunks))
-	for _, patch := range patchChunks {
-		slog.Debug(fmt.Sprintf("%v", patch))
+		patchChunks = append(patchChunks, tracker.patches()...)
 	}
-
-	// Prepare searcher for opening files
-	toSearcher := domain.NewSearcherFromTree(toTree)
 
 	// Prepare queries
-	queries := ds.Map(patchChunks, func(c *chunk) *domain.Source {
-		startL, endL := c.searchQueryLines()
-		return &domain.Source{
-			Filename: c.filename,
-			StartL:   startL,
-			EndL:     endL,
-		}
-	})
-
+	queries := ds.Map(patchChunks, (*chunk).searchQuery)
 	// Cut diffs into 3 lines for detecting micro-clones
 	/*
 		queries := ds.FlatMap(queries, func(c *domain.Source) []*domain.Source {
@@ -295,10 +299,14 @@ func Search(
 
 	// Search for clones
 	slog.Info(fmt.Sprintf("%d change chunk(s) within %d file(s) found.", len(queries), len(filePatches)), "from", fromTree, "to", toTree)
+	for i, q := range queries {
+		slog.Debug(fmt.Sprintf("Query#%d", i), "query", q)
+	}
 	algorithmFn, ok := algorithms[algorithmName]
 	if !ok {
 		return nil, fmt.Errorf("invalid algorithm name: %v", algorithmName)
 	}
+	toSearcher := domain.NewSearcherFromTree(toTree)
 	toClones, err := algorithmFn(ctx, toSearcher, queries, toSearcher, ignore)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching for clones")
