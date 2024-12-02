@@ -298,7 +298,7 @@ func Search(
 	*/
 
 	// Search for clones
-	slog.Info(fmt.Sprintf("%d change chunk(s) within %d file(s) found.", len(queries), len(filePatches)), "from", fromTree, "to", toTree)
+	slog.Info(fmt.Sprintf("%d changed text chunk(s) were found within %d changed file(s).", len(queries), len(filePatches)), "from", fromTree, "to", toTree)
 	for i, q := range queries {
 		slog.Debug(fmt.Sprintf("Query#%d", i), "query", q)
 	}
