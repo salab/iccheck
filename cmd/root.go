@@ -154,7 +154,7 @@ Can accept special value "WORKTREE" to specify the current worktree.`)
 	RootCmd.Flags().StringVar(&logLevel, "log-level", "", "Log level (debug, info, warn, error)")
 	RootCmd.Flags().StringVar(&formatType, "format", "console", "Format type (console, json, github)")
 	RootCmd.Flags().IntVar(&failCode, "fail-code", 0, "Exit code if it detects any inconsistent changes")
-	RootCmd.Flags().IntVar(&timeoutSeconds, "timeout-seconds", 15, "Timeout for detecting clones in seconds")
+	RootCmd.Flags().IntVar(&timeoutSeconds, "timeout-seconds", 60, "Timeout for detecting clones in seconds")
 
 	RootCmd.PersistentFlags().StringVar(&algorithm, "algorithm", "fleccs", "Clone search algorithm to use (fleccs, ncdsearch)")
 

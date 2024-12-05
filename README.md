@@ -83,7 +83,7 @@ Flags:
                                  Example (ignore import statements in js files): --ignore '\.m?[jt]s$:^import'
       --log-level string         Log level (debug, info, warn, error)
   -r, --repo string              Source git directory (supports bare)
-      --timeout-seconds int      Timeout for detecting clones in seconds (default 15)
+      --timeout-seconds int      Timeout for detecting clones in seconds (default 60)
   -t, --to string                Target git ref to compare from. Usually later in time.
                                  Can accept special value "WORKTREE" to specify the current worktree.
   -v, --version                  version for iccheck
