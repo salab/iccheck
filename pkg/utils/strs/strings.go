@@ -4,6 +4,7 @@ import (
 	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/samber/lo"
 	"slices"
+	"unsafe"
 )
 
 type Set = map[string]struct{}
@@ -42,9 +43,18 @@ func Bigram(s []byte) BigramSet {
 }
 
 func BigramIntersectionCount(s1, s2 BigramSet) int {
+	if len(s1) == 0 || len(s2) == 0 {
+		return 0
+	}
+
 	cnt := 0
+	s1Ptr := unsafe.Pointer(&s1[0])
+	s2Ptr := unsafe.Pointer(&s2[0])
 	for idx1, idx2 := 0, 0; idx1 < len(s1) && idx2 < len(s2); {
-		e1, e2 := s1[idx1], s2[idx2]
+		// Slice indexing without bounds checking (this gives about +25% performance on this hot-path)
+		e1 := *(*uint16)(unsafe.Add(s1Ptr, idx1))
+		e2 := *(*uint16)(unsafe.Add(s2Ptr, idx2))
+
 		idx1 += lo.Ternary(e1 <= e2, 1, 0)
 		idx2 += lo.Ternary(e1 >= e2, 1, 0)
 		cnt += lo.Ternary(e1 == e2, 1, 0)
