@@ -130,7 +130,7 @@ func findCandidates(
 ) []*Candidate {
 	var candidates []*Candidate
 	windowSize := len(q.contextBigrams)
-	orgWindowSize := windowSize - q.enlargedContext
+	orgWindowSize := windowSize - 2*q.enlargedContext
 
 	if len(searchFileBigrams) < windowSize {
 		// If the search target file is shorter than the query lines (including context)
