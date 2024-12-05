@@ -2,6 +2,7 @@ package strs
 
 import (
 	"github.com/salab/iccheck/pkg/utils/ds"
+	"github.com/samber/lo"
 	"slices"
 )
 
@@ -44,15 +45,9 @@ func BigramIntersectionCount(s1, s2 BigramSet) int {
 	cnt := 0
 	for idx1, idx2 := 0, 0; idx1 < len(s1) && idx2 < len(s2); {
 		e1, e2 := s1[idx1], s2[idx2]
-		if e1 < e2 {
-			idx1++
-		} else if e2 < e1 {
-			idx2++
-		} else {
-			cnt++
-			idx1++
-			idx2++
-		}
+		idx1 += lo.Ternary(e1 <= e2, 1, 0)
+		idx2 += lo.Ternary(e1 >= e2, 1, 0)
+		cnt += lo.Ternary(e1 == e2, 1, 0)
 	}
 	return cnt
 }
