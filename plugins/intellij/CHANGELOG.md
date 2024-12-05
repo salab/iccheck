@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+## [0.7.5] - 2024-12-05
+
+- 0f9c2805132d6737b874e63f4faf948b27f198d8 v0.7.5
+- d9dd9eac2c16f7b63b23d8a627c0d41ca6bed2ec fixup! fix: Skip region included context lines (+-4 lines)
+- 99308260977081c990e9464fee0fea76680d420a fix: Skip region included context lines (+-4 lines)
+- 19edddd7f122708c55455908c71f6661d37c47c4 Merge pull request #17 from salab/intellij-changelog-update-0.7.4
+- 0379fb4989b44f8146191e0c06fdbad3fb3aba30 IntelliJ Changelog Update - 0.7.4
+
 ## [0.7.4] - 2024-12-05
 
 - 9da9b61db634a6eda5d98e555189c54a074983cf v0.7.4
@@ -172,7 +180,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.7.4...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.7.5...HEAD
+[0.7.5]: https://github.com/salab/iccheck/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/salab/iccheck/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/salab/iccheck/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/salab/iccheck/compare/v0.7.1...v0.7.2
