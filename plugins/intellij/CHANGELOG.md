@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [0.7.6] - 2024-12-05
+
+- 7009d2d07063556f2f87559834deca76473f2205 v0.7.6
+- 99c8d582f8da763e08ff22cbbcd7aa32290db14c fix: perf: Slice indexing
+- ec05b76c67b2eebf421160b27fd4d588cc19d712 Merge pull request #18 from salab/intellij-changelog-update-0.7.5
+- f3e64ba2d839f991cd063bcad37e836a68b93b9a IntelliJ Changelog Update - 0.7.5
+
 ## [0.7.5] - 2024-12-05
 
 - 0f9c2805132d6737b874e63f4faf948b27f198d8 v0.7.5
@@ -180,7 +187,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.7.5...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.7.6...HEAD
+[0.7.6]: https://github.com/salab/iccheck/compare/v0.7.5...v0.7.6
 [0.7.5]: https://github.com/salab/iccheck/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/salab/iccheck/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/salab/iccheck/compare/v0.7.2...v0.7.3
