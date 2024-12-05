@@ -52,8 +52,8 @@ func BigramIntersectionCount(s1, s2 BigramSet) int {
 	s2Ptr := unsafe.Pointer(&s2[0])
 	for idx1, idx2 := 0, 0; idx1 < len(s1) && idx2 < len(s2); {
 		// Slice indexing without bounds checking (this gives about +25% performance on this hot-path)
-		e1 := *(*uint16)(unsafe.Add(s1Ptr, idx1))
-		e2 := *(*uint16)(unsafe.Add(s2Ptr, idx2))
+		e1 := *(*uint16)(unsafe.Add(s1Ptr, idx1*2))
+		e2 := *(*uint16)(unsafe.Add(s2Ptr, idx2*2))
 
 		idx1 += lo.Ternary(e1 <= e2, 1, 0)
 		idx2 += lo.Ternary(e1 >= e2, 1, 0)
