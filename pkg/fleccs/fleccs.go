@@ -37,6 +37,7 @@ type Query struct {
 	Filename     string
 	StartL, EndL int
 
+	enlargedContext    int
 	contextStartLine   int
 	contextEndLine     int
 	contextLineLengths []int
@@ -64,6 +65,7 @@ func (q *Query) calculateContextLines(c *config, queryTree domain.Searcher) erro
 	queryFileStrLines := files.Lines(queryFileContent)
 	queryFileLines := ds.Map(queryFileStrLines, func(l string) []byte { return []byte(l) })
 
+	q.enlargedContext = c.contextLines
 	q.contextStartLine = max(1, q.StartL-c.contextLines)               // inclusive, 1-indexed
 	q.contextEndLine = min(len(queryFileLines), q.EndL+c.contextLines) // inclusive, 1-indexed
 
@@ -128,6 +130,7 @@ func findCandidates(
 ) []*Candidate {
 	var candidates []*Candidate
 	windowSize := len(q.contextBigrams)
+	orgWindowSize := windowSize - q.enlargedContext
 
 	if len(searchFileBigrams) < windowSize {
 		// If the search target file is shorter than the query lines (including context)
@@ -138,9 +141,9 @@ func findCandidates(
 		startLine := i            // 0-indexed, inclusive
 		endLine := i + windowSize // 0-indexed, exclusive
 
-		// Check if this region is skipped
-		if canSkip, skipUntil := ignoreRule.CanSkip(i, windowSize); canSkip {
-			i = skipUntil
+		// Check if this (original) region can be skipped
+		if canSkip, skipUntil := ignoreRule.CanSkip(i+q.enlargedContext, orgWindowSize); canSkip {
+			i = skipUntil - q.enlargedContext
 			continue
 		}
 
