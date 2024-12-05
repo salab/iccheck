@@ -14,26 +14,15 @@ import (
 	"io"
 	"os"
 	"strings"
-	"sync"
 )
 
 type goGitCommitTree struct {
 	commit *object.Commit
 	ref    string
-
-	files       map[string]*object.File
-	preload     bool
-	preloadOnce sync.Once
 }
 
-func NewGoGitCommitTree(commit *object.Commit, ref string, preload bool) Tree {
-	g := &goGitCommitTree{commit: commit, ref: ref, preload: preload}
-	if g.preload {
-		// go-git's (*object).Commit does not allow concurrent read through File() for some reason.
-		// So for performance reason, preload the internal tree cache entries before reading concurrently,
-		// to avoid concurrent map writes.
-		g.preloadOnce.Do(g.preloadTreeCache)
-	}
+func NewGoGitCommitTree(commit *object.Commit, ref string) Tree {
+	g := &goGitCommitTree{commit: commit, ref: ref}
 	return g
 }
 
@@ -42,9 +31,6 @@ func (g *goGitCommitTree) String() string {
 }
 
 func (g *goGitCommitTree) Tree() (t *object.Tree, err error, ok bool) {
-	if g.preload {
-		g.preloadOnce.Do(g.preloadTreeCache)
-	}
 	t, err = g.commit.Tree()
 	if err != nil {
 		return nil, errors.Wrap(err, "resolving commit tree"), false
@@ -53,9 +39,6 @@ func (g *goGitCommitTree) Tree() (t *object.Tree, err error, ok bool) {
 }
 
 func (g *goGitCommitTree) Noder() (noder.Noder, error) {
-	if g.preload {
-		g.preloadOnce.Do(g.preloadTreeCache)
-	}
 	cTree, err := g.commit.Tree()
 	if err != nil {
 		return nil, errors.Wrap(err, "resolving commit tree")
@@ -64,43 +47,10 @@ func (g *goGitCommitTree) Noder() (noder.Noder, error) {
 	return node, nil
 }
 
-func (g *goGitCommitTree) _preloadTreeCache() error {
-	cTree, err := g.commit.Tree()
-	if err != nil {
-		return errors.Wrap(err, "resolving commit tree")
-	}
-
-	g.files = make(map[string]*object.File)
-	walker := object.NewTreeWalker(cTree, true, nil)
-	for {
-		filename, entry, err := walker.Next()
-		if err != nil {
-			break
-		}
-		if !entry.Mode.IsFile() {
-			continue
-		}
-		file, err := g.commit.File(filename)
-		if err != nil {
-			return err
-		}
-		g.files[filename] = file
-	}
-	return nil
-}
-
-func (g *goGitCommitTree) preloadTreeCache() {
-	err := g._preloadTreeCache()
-	if err != nil {
-		panic("error preloading tree cache: " + err.Error())
-	}
-}
-
 func (g *goGitCommitTree) Reader(path string) (io.ReadCloser, error) {
-	g.preloadOnce.Do(g.preloadTreeCache)
-	file, ok := g.files[path]
-	if !ok {
-		return nil, fmt.Errorf("resolving file %v", path)
+	file, err := g.commit.File(path)
+	if err != nil {
+		return nil, errors.Wrapf(err, "resolving path %v", path)
 	}
 	return file.Reader()
 }

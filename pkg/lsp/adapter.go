@@ -190,7 +190,7 @@ func (h *handler) getCloneSets(ctx context.Context, gitPath string) ([]*domain.C
 	if err != nil {
 		return nil, errors.Wrapf(err, "resolving commit from hash %v", *headHash)
 	}
-	headTree := domain.NewGoGitCommitTree(headCommit, "HEAD", false)
+	headTree := domain.NewGoGitCommitTree(headCommit, "HEAD")
 
 	// Get overlay tree
 	targetTree, err := domain.NewGoGitWorktreeWithOverlay(repo, h.openFiles.Copy())
