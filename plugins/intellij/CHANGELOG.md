@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+## [0.7.3] - 2024-12-05
+
+- 3a27562b22bb17508514b9048698118d7432b45c v0.7.3
+- 7afd704505b799af7aea810daa2103c25b4619de perf: Use forked go-git and disable workaround
+- 68e6eb966ce709e76df0bf4925f059f78c0345d0 chores: test code: runtime/pprof
+- a8ef551b6ee86af5a1ea383cc76b6e285b2b0442 chores: Increase default timeout
+- e174382975b8a6ea1d2243a0c280140f59266e43 Merge pull request #15 from salab/intellij-changelog-update-0.7.2
+- 61ff2c3e05698eeb0f358294abe34ba235abdb25 IntelliJ Changelog Update - 0.7.2
+
 ## [0.7.2] - 2024-12-02
 
 - b846b32a8d8b9653d8448263569098c1588777d5 v0.7.2
@@ -155,7 +164,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.7.3...HEAD
+[0.7.3]: https://github.com/salab/iccheck/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/salab/iccheck/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/salab/iccheck/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/salab/iccheck/compare/v0.6.0...v0.7.0
