@@ -2,7 +2,7 @@
 	"name": "iccheck",
 	"description": "Reports possible inconsistent changes in pre-commit files.",
 	"license": "MIT",
-	"version": "0.7.4",
+	"version": "0.7.5",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/salab/iccheck.git"
