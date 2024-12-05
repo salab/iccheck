@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+## [0.7.4] - 2024-12-05
+
+- 9da9b61db634a6eda5d98e555189c54a074983cf v0.7.4
+- da9a64f7d24f90b47c7d80619af192fbdd5b831c perf: Skip go bounds-check (+25% perf)
+- 7207ea54b5bcd33aa1d7b292112a24aa064cd76c perf: Branchless code (+15% perf)
+- 4ee7246fc50008ddb731b93520cbffb7ebc70ec4 Merge pull request #16 from salab/intellij-changelog-update-0.7.3
+- 7ff173579627229595d8323640773eb51077b947 IntelliJ Changelog Update - 0.7.3
+
 ## [0.7.3] - 2024-12-05
 
 - 3a27562b22bb17508514b9048698118d7432b45c v0.7.3
@@ -164,7 +172,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.7.3...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.7.4...HEAD
+[0.7.4]: https://github.com/salab/iccheck/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/salab/iccheck/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/salab/iccheck/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/salab/iccheck/compare/v0.7.0...v0.7.1
