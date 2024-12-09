@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/spf13/pflag"
 	"golang.org/x/term"
 	"log/slog"
 	"os"
@@ -33,36 +34,18 @@ Finds inconsistent changes in your git changes.`, cli.GetFormattedVersion()),
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(timeoutSeconds))
 		defer cancel()
 
-		if logLevel == "" {
-			logLevel = autoDetermineLogLevel()
-		}
-		switch logLevel {
-		case "debug":
-			slog.SetLogLoggerLevel(slog.LevelDebug)
-		case "info":
-			slog.SetLogLoggerLevel(slog.LevelInfo)
-		case "warn":
-			slog.SetLogLoggerLevel(slog.LevelWarn)
-		case "error":
-			slog.SetLogLoggerLevel(slog.LevelError)
-		default:
-			return errors.New("invalid log level")
-		}
-
-		// Read ignore rules
-		ignore, err := domain.ReadIgnoreRules(repoDir, ignoreCLIOptions, disableDefaultIgnore)
-		if err != nil {
-			return errors.Wrapf(err, "reading ignore rules")
-		}
-
 		// Prepare
-		if repoDir == "" {
-			repoDir, err = autoDetermineTopLevelGit()
-			if err != nil {
-				return errors.Wrapf(err, "detecting git repository")
-			}
+		if err := setLogLevel(); err != nil {
+			return err
 		}
-
+		ignore, err := readIgnoreRules()
+		if err != nil {
+			return err
+		}
+		repoDir, err := getRepoDir()
+		if err != nil {
+			return err
+		}
 		repo, err := git.PlainOpen(repoDir)
 		if err != nil {
 			return errors.Wrapf(err, "opening repository at %v", repoDir)
@@ -102,26 +85,7 @@ Finds inconsistent changes in your git changes.`, cli.GetFormattedVersion()),
 		if err != nil {
 			return err
 		}
-
-		// If all clones in a set went through some changes, no need to notify
-		cloneSets = lo.Filter(cloneSets, func(cs *domain.CloneSet, _ int) bool { return len(cs.Missing) > 0 })
-
-		// Report the findings
-		missingChanges := lo.SumBy(cloneSets, func(set *domain.CloneSet) int { return len(set.Missing) })
-		if missingChanges == 0 {
-			slog.Info(fmt.Sprintf("No clones are missing consistent change."))
-		} else {
-			slog.Info(fmt.Sprintf("%d clone(s) are likely missing consistent change.", missingChanges))
-		}
-
-		printer := getPrinter()
-		out := printer.PrintClones(cloneSets)
-		fmt.Print(string(out))
-
-		// If any inconsistent changes are found, exit with specified code
-		if len(cloneSets) > 0 && failCode != 0 {
-			os.Exit(failCode)
-		}
+		reportClones(cloneSets)
 		return nil
 	},
 }
@@ -136,44 +100,56 @@ func Execute() {
 }
 
 var (
-	repoDir string
 	fromRef string
 	toRef   string
+)
 
-	algorithm string
-
-	logLevel       string
+var (
+	repoDir        string
 	formatType     string
 	failCode       int
 	timeoutSeconds int
 )
 
 var (
+	logLevel             string
+	algorithm            string
 	ignoreCLIOptions     []string
 	disableDefaultIgnore bool
 )
 
 func init() {
-	RootCmd.Flags().StringVarP(&repoDir, "repo", "r", "", "Source git directory (supports bare)")
+	// Root command specific
 	RootCmd.Flags().StringVarP(&fromRef, "from", "f", "", "Base git ref to compare against. Usually earlier in time.")
 	RootCmd.Flags().StringVarP(&toRef, "to", "t", "", `Target git ref to compare from. Usually later in time.
 Can accept special value "WORKTREE" to specify the current worktree.`)
 
-	RootCmd.Flags().StringVar(&logLevel, "log-level", "", "Log level (debug, info, warn, error)")
-	RootCmd.Flags().StringVar(&formatType, "format", "console", "Format type (console, json, github)")
-	RootCmd.Flags().IntVar(&failCode, "fail-code", 0, "Exit code if it detects any inconsistent changes")
-	RootCmd.Flags().IntVar(&timeoutSeconds, "timeout-seconds", 60, "Timeout for detecting clones in seconds")
+	// Common to root command and "search" command
+	searchFlags := pflag.NewFlagSet("search", pflag.ContinueOnError)
+	searchFlags.StringVarP(&repoDir, "repo", "r", "", "Source git directory (supports bare)")
+	searchFlags.StringVar(&formatType, "format", "console", "Format type (console, json, github)")
+	searchFlags.IntVar(&failCode, "fail-code", 0, "Exit code if it detects any inconsistent changes")
+	searchFlags.IntVar(&timeoutSeconds, "timeout-seconds", 60, "Timeout for detecting clones in seconds")
 
-	RootCmd.PersistentFlags().StringVar(&algorithm, "algorithm", "fleccs", "Clone search algorithm to use (fleccs, ncdsearch)")
+	RootCmd.Flags().AddFlagSet(searchFlags)
+	searchCmd.Flags().AddFlagSet(searchFlags)
 
-	RootCmd.PersistentFlags().StringArrayVar(&ignoreCLIOptions, "ignore", nil, `Regexp of file paths (and its contents) to ignore.
+	// Common to all commands
+	pfs := RootCmd.PersistentFlags()
+	pfs.StringVar(&logLevel, "log-level", "", "Log level (debug, info, warn, error)")
+	pfs.StringVar(&algorithm, "algorithm", "fleccs", "Clone search algorithm to use (fleccs, ncdsearch)")
+	pfs.StringArrayVar(&ignoreCLIOptions, "ignore", nil, `Regexp of file paths (and its contents) to ignore.
 If specifying both file paths and contents ignore regexp, split them by ':'.
 Example (ignore dist directory): --ignore '^dist/'
 Example (ignore import statements in js files): --ignore '\.m?[jt]s$:^import'`)
-	RootCmd.PersistentFlags().BoolVar(&disableDefaultIgnore, "disable-default-ignore", false, "Disable default ignore configs")
+	pfs.BoolVar(&disableDefaultIgnore, "disable-default-ignore", false, "Disable default ignore configs")
 
+	// Disable "completion" command
 	RootCmd.CompletionOptions.DisableDefaultCmd = true
+
+	// Add child commands
 	RootCmd.AddCommand(lspCmd)
+	RootCmd.AddCommand(searchCmd)
 }
 
 func autoDetermineLogLevel() string {
@@ -183,6 +159,33 @@ func autoDetermineLogLevel() string {
 		// Suppress verbose logging messages by default, if output is not a tty - likely a pipe or a file.
 		return "warn"
 	}
+}
+
+func setLogLevel() error {
+	if logLevel == "" {
+		logLevel = autoDetermineLogLevel()
+	}
+	switch logLevel {
+	case "debug":
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	case "info":
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	case "warn":
+		slog.SetLogLoggerLevel(slog.LevelWarn)
+	case "error":
+		slog.SetLogLoggerLevel(slog.LevelError)
+	default:
+		return errors.New("invalid log level")
+	}
+	return nil
+}
+
+func readIgnoreRules() (domain.IgnoreRules, error) {
+	ignore, err := domain.ReadIgnoreRules(repoDir, ignoreCLIOptions, disableDefaultIgnore)
+	if err != nil {
+		return nil, errors.Wrapf(err, "reading ignore rules")
+	}
+	return ignore, nil
 }
 
 func autoDetermineTopLevelGit() (string, error) {
@@ -203,6 +206,17 @@ func autoDetermineTopLevelGit() (string, error) {
 		}
 		dir = parent
 	}
+}
+
+func getRepoDir() (string, error) {
+	if repoDir != "" {
+		return repoDir, nil
+	}
+	repoDir, err := autoDetermineTopLevelGit()
+	if err != nil {
+		return "", errors.Wrap(err, "determining git repository")
+	}
+	return repoDir, nil
 }
 
 func autoDetermineRefs(repo *git.Repository) (from, to string, err error) {
@@ -300,6 +314,28 @@ func resolveTree(repo *git.Repository, ref string) (domain.Tree, error) {
 		return nil, errors.Wrapf(err, "resolving commit from hash %v", *hash)
 	}
 	return domain.NewGoGitCommitTree(commit, ref), nil
+}
+
+func reportClones(cloneSets []*domain.CloneSet) {
+	// If all clones in a set went through some changes, no need to notify
+	cloneSets = lo.Filter(cloneSets, func(cs *domain.CloneSet, _ int) bool { return len(cs.Missing) > 0 })
+
+	// Report the findings
+	missingChanges := lo.SumBy(cloneSets, func(set *domain.CloneSet) int { return len(set.Missing) })
+	if missingChanges == 0 {
+		slog.Info(fmt.Sprintf("No clones are missing consistent change."))
+	} else {
+		slog.Info(fmt.Sprintf("%d clone(s) are likely missing consistent change.", missingChanges))
+	}
+
+	printer := getPrinter()
+	out := printer.PrintClones(cloneSets)
+	fmt.Print(string(out))
+
+	// If any inconsistent changes are found, exit with specified code
+	if len(cloneSets) > 0 && failCode != 0 {
+		os.Exit(failCode)
+	}
 }
 
 func getPrinter() printer.Printer {
