@@ -69,6 +69,7 @@ Usage:
 Available Commands:
   help        Help about any command
   lsp         Starts ICCheck Language Server
+  search      A low-level command to search for code clones
 
 Flags:
       --algorithm string         Clone search algorithm to use (fleccs, ncdsearch) (default "fleccs")
