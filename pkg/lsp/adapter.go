@@ -193,7 +193,7 @@ func (h *handler) getCloneSets(ctx context.Context, gitPath string) ([]*domain.C
 	headTree := domain.NewGoGitCommitTree(headCommit, "HEAD")
 
 	// Get overlay tree
-	targetTree, err := domain.NewGoGitWorktreeWithOverlay(repo, h.openFiles.Copy())
+	worktree, err := domain.NewGoGitWorktreeWithOverlay(repo, &h.openFiles)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating domain tree")
 	}
@@ -205,7 +205,12 @@ func (h *handler) getCloneSets(ctx context.Context, gitPath string) ([]*domain.C
 	}
 
 	// Calculate
-	cloneSets, err := search.Search(ctx, h.algorithm, headTree, targetTree, ignore)
+	queries, changedFiles, err := search.DiffTrees(ctx, headTree, worktree)
+	if err != nil {
+		return nil, err
+	}
+	slog.Info(fmt.Sprintf("%d changed text chunk(s) were found within %d changed file(s).", len(queries), changedFiles))
+	cloneSets, err := search.Search(ctx, h.algorithm, queries, worktree, ignore)
 	if err != nil {
 		return nil, err
 	}

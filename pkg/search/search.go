@@ -161,13 +161,12 @@ func findCloneSets(clones []*domain.Clone, sources []*domain.Source) (sets [][]*
 	return lo.Values(setByRootID)
 }
 
-func filterMissingChanges(cloneSets [][]*domain.Clone, actualPatches []*chunk) []*domain.CloneSet {
-	perFile := lo.GroupBy(actualPatches, func(c *chunk) string { return c.searchQuery().Filename })
+func filterMissingChanges(cloneSets [][]*domain.Clone, queries []*domain.Source) []*domain.CloneSet {
+	perFile := lo.GroupBy(queries, func(s *domain.Source) string { return s.Filename })
 	isChanged := func(c *domain.Clone) bool {
-		patchChunks := perFile[c.Filename]
+		qs := perFile[c.Filename]
 		// Is the clone changed by any of the patch chunks?
-		for _, p := range patchChunks {
-			q := p.searchQuery()
+		for _, q := range qs {
 			hasOverlap := c.StartL <= q.EndL && q.StartL <= c.EndL
 			if hasOverlap {
 				return true
@@ -189,16 +188,14 @@ func filterMissingChanges(cloneSets [][]*domain.Clone, actualPatches []*chunk) [
 	})
 }
 
-func Search(
-	ctx context.Context,
-	algorithmName string,
+func DiffTrees(
+	_ context.Context,
 	fromTree, toTree domain.Tree,
-	ignore domain.IgnoreRules,
-) ([]*domain.CloneSet, error) {
+) ([]*domain.Source, int, error) {
 	// Compare the trees
 	filePatches, err := domain.DiffTrees(fromTree, toTree)
 	if err != nil {
-		return nil, errors.Wrap(err, "diffing trees")
+		return nil, 0, errors.Wrap(err, "diffing trees")
 	}
 
 	// Calculate the chunks
@@ -296,30 +293,35 @@ func Search(
 			return c.SlideCut(3)
 		})
 	*/
+	return queries, len(filePatches), nil
+}
 
+func Search(
+	ctx context.Context,
+	algorithmName string,
+	queries []*domain.Source,
+	searchTree domain.Tree,
+	ignore domain.IgnoreRules,
+) ([]*domain.CloneSet, error) {
 	// Search for clones
-	slog.Info(fmt.Sprintf("%d changed text chunk(s) were found within %d changed file(s).", len(queries), len(filePatches)), "from", fromTree, "to", toTree)
-	for i, q := range queries {
-		slog.Debug(fmt.Sprintf("Query#%d", i), "query", q)
-	}
 	algorithmFn, ok := algorithms[algorithmName]
 	if !ok {
 		return nil, fmt.Errorf("invalid algorithm name: %v", algorithmName)
 	}
-	toSearcher := domain.NewSearcherFromTree(toTree)
-	toClones, err := algorithmFn(ctx, toSearcher, queries, toSearcher, ignore)
+	searcher := domain.NewSearcherFromTree(searchTree)
+	clones, err := algorithmFn(ctx, searcher, queries, searcher, ignore)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching for clones")
 	}
 
 	// Deduplicate overlapping clones
-	toClones = dedupeDetectedClones(toClones)
+	clones = dedupeDetectedClones(clones)
 
 	// Calculate clone sets
-	rawCloneSets := findCloneSets(toClones, queries)
+	rawCloneSets := findCloneSets(clones, queries)
 
 	// Calculate inconsistent changes by listing clones not modified by this patch
-	cloneSets := filterMissingChanges(rawCloneSets, patchChunks)
+	cloneSets := filterMissingChanges(rawCloneSets, queries)
 
 	// Filter size 1 "clone sets" - this is included in the calculation result of this algorithm, but not really "clone sets"
 	cloneSets = lo.Filter(cloneSets, func(cs *domain.CloneSet, _ int) bool { return len(cs.Missing)+len(cs.Changed) > 1 })

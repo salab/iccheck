@@ -10,6 +10,7 @@ import (
 	"github.com/go-git/go-git/v5/utils/merkletrie/filesystem"
 	"github.com/go-git/go-git/v5/utils/merkletrie/noder"
 	"github.com/pkg/errors"
+	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/samber/lo"
 	"io"
 	"os"
@@ -208,11 +209,11 @@ type goGitWorktreeWithOverlay struct {
 // for use with filesystem.NewRootNode and Tree.Reader methods.
 type billyFSOverlay struct {
 	billy.Filesystem
-	overlay map[string]string
+	overlay *ds.SyncMap[string, string]
 }
 
 func (o *billyFSOverlay) Open(path string) (billy.File, error) {
-	if content, ok := o.overlay[path]; ok {
+	if content, ok := o.overlay.Load(path); ok {
 		return &billyInMemoryFile{
 			name:   path,
 			Reader: strings.NewReader(content),
@@ -239,7 +240,7 @@ func (f *billyInMemoryFile) Close() error {
 	return nil
 }
 
-func NewGoGitWorktreeWithOverlay(repo *git.Repository, overlay map[string]string) (Tree, error) {
+func NewGoGitWorktreeWithOverlay(repo *git.Repository, overlay *ds.SyncMap[string, string]) (Tree, error) {
 	tree, err := NewGoGitWorkTree(repo)
 	if err != nil {
 		return nil, err

@@ -90,7 +90,15 @@ Finds inconsistent changes in your git changes.`, cli.GetFormattedVersion()),
 		}
 
 		// Search for inconsistent changes
-		cloneSets, err := search.Search(ctx, algorithm, fromTree, toTree, ignore)
+		queries, changedFiles, err := search.DiffTrees(ctx, fromTree, toTree)
+		if err != nil {
+			return err
+		}
+		slog.Info(fmt.Sprintf("%d changed text chunk(s) were found within %d changed file(s).", len(queries), changedFiles), "from", fromTree, "to", toTree)
+		for i, q := range queries {
+			slog.Debug(fmt.Sprintf("Query#%d", i), "query", q)
+		}
+		cloneSets, err := search.Search(ctx, algorithm, queries, toTree, ignore)
 		if err != nil {
 			return err
 		}
