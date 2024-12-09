@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2024-12-09
+
+- 1d271d8e70cc55c86299e268623bb59f9d06fb14 v0.8.0
+- 71161970c104bfa6866e900cc179d61aadad806f docs: update readme
+- a19d7255e80a83dec1fe912873b4cc4e0e18931e feat: raw "search" command to search for clones
+- 66d6d81322426b9beaf28a09cba73e5046ca2e43 refactor: split query extraction function
+- ffa14c0acfd95f34416c3b734c300c39f9b7528c Merge pull request #19 from salab/intellij-changelog-update-0.7.6
+- 4f4341a02051baf0f37eb22339dd3cc9cbacba86 IntelliJ Changelog Update - 0.7.6
+
 ## [0.7.6] - 2024-12-05
 
 - 7009d2d07063556f2f87559834deca76473f2205 v0.7.6
@@ -187,7 +196,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.7.6...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/salab/iccheck/compare/v0.7.6...v0.8.0
 [0.7.6]: https://github.com/salab/iccheck/compare/v0.7.5...v0.7.6
 [0.7.5]: https://github.com/salab/iccheck/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/salab/iccheck/compare/v0.7.3...v0.7.4
