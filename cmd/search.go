@@ -74,7 +74,7 @@ search is a low-level command to search for code clones.
 		}
 
 		// Search for clones and report
-		cloneSets, err := search.Search(ctx, algorithm, []*domain.Source{query}, searchTree, ignore)
+		cloneSets, err := search.Search(ctx, algorithm, []*domain.Source{query}, searchTree, ignore, detectMicro)
 		if err != nil {
 			return err
 		}

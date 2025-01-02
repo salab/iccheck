@@ -81,7 +81,7 @@ Finds inconsistent changes in your git changes.`, cli.GetFormattedVersion()),
 		for i, q := range queries {
 			slog.Debug(fmt.Sprintf("Query#%d", i), "query", q)
 		}
-		cloneSets, err := search.Search(ctx, algorithm, queries, toTree, ignore)
+		cloneSets, err := search.Search(ctx, algorithm, queries, toTree, ignore, detectMicro)
 		if err != nil {
 			return err
 		}
@@ -116,6 +116,7 @@ var (
 	algorithm            string
 	ignoreCLIOptions     []string
 	disableDefaultIgnore bool
+	detectMicro          bool
 )
 
 func init() {
@@ -143,6 +144,7 @@ If specifying both file paths and contents ignore regexp, split them by ':'.
 Example (ignore dist directory): --ignore '^dist/'
 Example (ignore import statements in js files): --ignore '\.m?[jt]s$:^import'`)
 	pfs.BoolVar(&disableDefaultIgnore, "disable-default-ignore", false, "Disable default ignore configs")
+	pfs.BoolVar(&detectMicro, "micro", false, "Splits query to detect micro-clones (has performance implications!)")
 
 	// Disable "completion" command
 	RootCmd.CompletionOptions.DisableDefaultCmd = true

@@ -20,6 +20,7 @@ type handler struct {
 	conn *jsonrpc2.Conn
 
 	ignoreRulesCache *sc.Cache[string, domain.IgnoreRules]
+	detectMicro      bool
 
 	filesCache          *sc.Cache[string, []string]
 	analyzeCache        *sc.Cache[string, struct{}]
@@ -46,6 +47,7 @@ func NewHandler(
 	timeout time.Duration,
 	ignoreCLIOptions []string,
 	disableDefaultIgnore bool,
+	detectMicro bool,
 ) jsonrpc2.Handler {
 	h := &handler{
 		algorithm: algorithm,
@@ -57,6 +59,7 @@ func NewHandler(
 	h.ignoreRulesCache = sc.NewMust(func(ctx context.Context, repoDir string) (domain.IgnoreRules, error) {
 		return domain.ReadIgnoreRules(repoDir, ignoreCLIOptions, disableDefaultIgnore)
 	}, time.Minute, 2*time.Minute)
+	h.detectMicro = detectMicro
 
 	// Dedupe calls to clone set calculation
 	h.filesCache = sc.NewMust(h.readFile, time.Minute, time.Minute, sc.EnableStrictCoalescing())

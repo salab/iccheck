@@ -287,12 +287,6 @@ func DiffTrees(
 
 	// Prepare queries
 	queries := ds.Map(patchChunks, (*chunk).searchQuery)
-	// Cut diffs into 3 lines for detecting micro-clones
-	/*
-		queries := ds.FlatMap(queries, func(c *domain.Source) []*domain.Source {
-			return c.SlideCut(3)
-		})
-	*/
 	return queries, len(filePatches), nil
 }
 
@@ -302,7 +296,15 @@ func Search(
 	queries []*domain.Source,
 	searchTree domain.Tree,
 	ignore domain.IgnoreRules,
+	micro bool,
 ) ([]*domain.CloneSet, error) {
+	if micro {
+		// Cut diffs into 3 lines for detecting micro-clones
+		queries = ds.FlatMap(queries, func(c *domain.Source) []*domain.Source {
+			return c.SlideCut(3)
+		})
+	}
+
 	// Search for clones
 	algorithmFn, ok := algorithms[algorithmName]
 	if !ok {

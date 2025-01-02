@@ -32,6 +32,7 @@ Starts ICCheck Language Server.`, cli.GetFormattedVersion()),
 			time.Duration(lspTimeoutSeconds)*time.Second,
 			ignoreCLIOptions,
 			disableDefaultIgnore,
+			detectMicro,
 		)
 		// rwc := lo.Must(newSocketRWC(8080))
 		conn := jsonrpc2.NewConn(

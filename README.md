@@ -83,6 +83,7 @@ Flags:
                                  Example (ignore dist directory): --ignore '^dist/'
                                  Example (ignore import statements in js files): --ignore '\.m?[jt]s$:^import'
       --log-level string         Log level (debug, info, warn, error)
+      --micro                    Splits query to detect micro-clones (has performance implications!)
   -r, --repo string              Source git directory (supports bare)
       --timeout-seconds int      Timeout for detecting clones in seconds (default 60)
   -t, --to string                Target git ref to compare from. Usually later in time.
