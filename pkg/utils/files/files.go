@@ -2,6 +2,7 @@ package files
 
 import (
 	"bytes"
+	"github.com/salab/iccheck/pkg/utils/strs"
 	"io"
 	"os"
 	"strings"
@@ -26,8 +27,8 @@ func FileTreeDistance(path1, path2 string) int {
 	return path1Dist + path2Dist
 }
 
-// LineIndices returns start indices of lines in the given bytes slice.
-func LineIndices(s []byte) []int {
+// LineStartIndices returns start indices of lines in the given bytes slice.
+func LineStartIndices(s []byte) []int {
 	currentIdx := 0
 	indices := make([]int, 0, 32)
 
@@ -54,6 +55,26 @@ func ReadAll(reader io.ReadCloser, err error) ([]byte, error) {
 	return io.ReadAll(reader)
 }
 
-func Lines(content []byte) []string {
-	return strings.Split(string(content), "\n")
+func LengthsAndBigrams(content []byte, startLine, endLine int) (lengths []int, bigrams []strs.BigramSet) {
+	indices := LineStartIndices(content)
+	nLines := len(indices)
+	indices = append(indices, len(content)) // to make code below cleaner
+
+	if endLine <= 0 {
+		endLine = nLines
+	}
+	lengths = make([]int, 0, endLine-startLine+1)
+	bigrams = make([]strs.BigramSet, 0, endLine-startLine+1)
+
+	for i := startLine - 1; i < endLine; i++ {
+		startIdx := indices[i]
+		endIdx := indices[i+1]
+		lengths = append(lengths, endIdx-startIdx)
+
+		line := content[startIdx:endIdx]
+		bigrams = append(bigrams, strs.Bigram(line))
+	}
+
+	bigrams = strs.CompactBigrams(bigrams) // For performance
+	return
 }

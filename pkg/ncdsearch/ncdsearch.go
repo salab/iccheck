@@ -104,7 +104,7 @@ func codeSearch(
 	lzSetQ := extractLZSet(q)
 
 	tokenIndices := tokenIndices(file, tokenize)
-	lineIndices := files.LineIndices(file)
+	lineIndices := files.LineStartIndices(file)
 	getLine := func(pos int) int {
 		found := sort.SearchInts(lineIndices, pos)
 		if found < len(lineIndices) && lineIndices[found] == pos {
@@ -223,7 +223,7 @@ func (q *Query) readContents(c *config, queryTree domain.Searcher) error {
 	if err != nil {
 		return err
 	}
-	lineIndices := files.LineIndices(fileContents)
+	lineIndices := files.LineStartIndices(fileContents)
 	if len(lineIndices) < q.EndL {
 		return fmt.Errorf("unexpected too short file %v", q.Filename)
 	}

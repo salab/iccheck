@@ -6,7 +6,6 @@
 package fleccs
 
 import (
-	"bytes"
 	"context"
 	"github.com/cespare/xxhash"
 	"github.com/pkg/errors"
@@ -62,20 +61,19 @@ func (q *Query) calculateContextLines(c *config, queryTree domain.Searcher) erro
 	if err != nil {
 		return errors.Wrapf(err, "reading file contents %v", q.Filename)
 	}
-	queryFileStrLines := files.Lines(queryFileContent)
-	queryFileLines := ds.Map(queryFileStrLines, func(l string) []byte { return []byte(l) })
+
+	queryFileLineIndices := files.LineStartIndices(queryFileContent)
+	queryFileLines := len(queryFileLineIndices)
+	queryFileLineIndices = append(queryFileLineIndices, len(queryFileContent)) // For cleaner code below
 
 	q.enlargedContext = c.contextLines
-	q.contextStartLine = max(1, q.StartL-c.contextLines)               // inclusive, 1-indexed
-	q.contextEndLine = min(len(queryFileLines), q.EndL+c.contextLines) // inclusive, 1-indexed
+	q.contextStartLine = max(1, q.StartL-c.contextLines)          // inclusive, 1-indexed
+	q.contextEndLine = min(queryFileLines, q.EndL+c.contextLines) // inclusive, 1-indexed
+	q.contextLineLengths, q.contextBigrams = files.LengthsAndBigrams(queryFileContent, q.contextStartLine, q.contextEndLine)
 
-	contextLines := queryFileLines[q.contextStartLine-1 : q.contextEndLine]
-	q.contextLineLengths = ds.Map(contextLines, func(line []byte) int { return len(line) })
-	q.contextBigrams = ds.Map(contextLines, func(line []byte) strs.BigramSet {
-		return strs.Bigram(line)
-	})
-
-	q.hash = xxhash.Sum64(bytes.Join(contextLines, nil))
+	startIdx := queryFileLineIndices[q.contextStartLine-1]
+	endIdx := queryFileLineIndices[q.contextEndLine]
+	q.hash = xxhash.Sum64(queryFileContent[startIdx:endIdx])
 
 	return nil
 }
@@ -203,13 +201,7 @@ func fileSearch(
 	}
 
 	fileHash := xxhash.Sum64(fileContent)
-	fileStrLines := files.Lines(fileContent)
-	fileLines := ds.Map(fileStrLines, func(l string) []byte { return []byte(l) })
-
-	fileLineLengths := ds.Map(fileLines, func(line []byte) int { return len(line) })
-	fileLineBigrams := ds.Map(fileLines, func(line []byte) strs.BigramSet {
-		return strs.Bigram(line)
-	})
+	fileLineLengths, fileLineBigrams := files.LengthsAndBigrams(fileContent, 1, -1)
 
 	var candidates []*Candidate
 	// For each query, extract candidates

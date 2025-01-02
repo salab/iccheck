@@ -156,7 +156,7 @@ func (i *IgnoreRule) matchFile(path string) bool {
 
 // matchContents returns 0-indexed line numbers whose contents match the ignore patterns.
 func (i *IgnoreRule) matchContents(contents []byte) (ignoreLines map[int]struct{}) {
-	lineIndices := files.LineIndices(contents)
+	lineIndices := files.LineStartIndices(contents)
 	ignoreLines = make(map[int]struct{})
 
 	toLineNumber := func(index int) int {

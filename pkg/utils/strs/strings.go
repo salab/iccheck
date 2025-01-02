@@ -42,6 +42,23 @@ func Bigram(s []byte) BigramSet {
 	return ds.Uniq(set)
 }
 
+// CompactBigrams compacts bigrams memory for better CPU cache hit ratio.
+func CompactBigrams(bigrams []BigramSet) []BigramSet {
+	totalBigrams := 0
+	for _, bigram := range bigrams {
+		totalBigrams += len(bigram)
+	}
+
+	underlyingArr := make([]uint16, totalBigrams)
+	underlyingIdx := 0
+	for i := range bigrams {
+		copy(underlyingArr[underlyingIdx:], bigrams[i])
+		bigrams[i] = underlyingArr[underlyingIdx : underlyingIdx+len(bigrams[i])]
+		underlyingIdx += len(bigrams[i])
+	}
+	return bigrams
+}
+
 func BigramIntersectionCount(s1, s2 BigramSet) int {
 	if len(s1) == 0 || len(s2) == 0 {
 		return 0
@@ -51,7 +68,7 @@ func BigramIntersectionCount(s1, s2 BigramSet) int {
 	s1Ptr := unsafe.Pointer(&s1[0])
 	s2Ptr := unsafe.Pointer(&s2[0])
 	for idx1, idx2 := 0, 0; idx1 < len(s1) && idx2 < len(s2); {
-		// Slice indexing without bounds checking (this gives about +25% performance on this hot-path)
+		// Slice indexing without bounds checking (this gives slightly better performance on this hot-path)
 		e1 := *(*uint16)(unsafe.Add(s1Ptr, idx1*2))
 		e2 := *(*uint16)(unsafe.Add(s2Ptr, idx2*2))
 

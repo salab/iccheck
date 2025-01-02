@@ -61,15 +61,15 @@ search is a low-level command to search for code clones.
 			if err != nil {
 				return errors.Wrapf(err, "opening file %v, does it exist?", query.Filename)
 			}
-			lines := files.Lines(contents)
+			indices := files.LineStartIndices(contents)
 			if queryStartL > queryEndL {
 				return errors.New("invalid flags: start-line is larger than end-line")
 			}
 			if queryStartL <= 0 || queryEndL <= 0 {
 				return errors.New("invalid flags: start-line and end-line must be positive integers")
 			}
-			if queryEndL > len(lines) {
-				return fmt.Errorf("invalid flags: end-line is greater than the file contents (%v lines)", len(lines))
+			if queryEndL > len(indices) {
+				return fmt.Errorf("invalid flags: end-line is greater than the file contents (%v lines)", len(indices))
 			}
 		}
 
