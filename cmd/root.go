@@ -116,6 +116,7 @@ var (
 var (
 	logLevel             string
 	algorithm            string
+	algorithmParam       []string
 	ignoreCLIOptions     []string
 	disableDefaultIgnore bool
 	detectMicro          bool
@@ -126,9 +127,24 @@ func searchConfig(repoDir string) (*search.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	params := make(map[string]string)
+	for _, str := range algorithmParam {
+		if str == "" {
+			continue // Empty str is included for some reason
+		}
+		parts := strings.Split(str, "=")
+		if len(parts) != 2 {
+			return nil, errors.Errorf("invalid algorithm param, should be of form key=value: %s", str)
+		}
+		key, value := parts[0], parts[1]
+		params[key] = value
+	}
+
 	return &search.Config{
 		Ignore:      ignore,
 		DetectMicro: detectMicro,
+		AlgoParams:  params,
 	}, nil
 }
 
@@ -152,6 +168,7 @@ Can accept special value "WORKTREE" to specify the current worktree.`)
 	pfs := RootCmd.PersistentFlags()
 	pfs.StringVar(&logLevel, "log-level", "", "Log level (debug, info, warn, error)")
 	pfs.StringVar(&algorithm, "algorithm", "fleccs", "Clone search algorithm to use (fleccs, ncdsearch)")
+	pfs.StringArrayVar(&algorithmParam, "algorithm-param", nil, "(Advanced) Parameters of the algorithm, consult code for syntax.")
 	pfs.StringArrayVar(&ignoreCLIOptions, "ignore", nil, `Regexp of file paths (and its contents) to ignore.
 If specifying both file paths and contents ignore regexp, split them by ':'.
 Example (ignore dist directory): --ignore '^dist/'

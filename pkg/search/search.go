@@ -293,6 +293,7 @@ func DiffTrees(
 type Config struct {
 	Ignore      domain.IgnoreRules
 	DetectMicro bool
+	AlgoParams  map[string]string
 }
 
 func Search(
@@ -315,7 +316,7 @@ func Search(
 		return nil, fmt.Errorf("invalid algorithm name: %v", algorithmName)
 	}
 	searcher := domain.NewSearcherFromTree(searchTree)
-	clones, err := algorithmFn(ctx, searcher, queries, searcher, c.Ignore)
+	clones, err := algorithmFn(ctx, searcher, queries, searcher, c)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching for clones")
 	}

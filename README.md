@@ -74,23 +74,24 @@ Available Commands:
   search      A low-level command to search for code clones
 
 Flags:
-      --algorithm string         Clone search algorithm to use (fleccs, ncdsearch) (default "fleccs")
-      --disable-default-ignore   Disable default ignore configs
-      --fail-code int            Exit code if it detects any inconsistent changes
-      --format string            Format type (console, json, github) (default "console")
-  -f, --from string              Base git ref to compare against. Usually earlier in time.
-  -h, --help                     help for iccheck
-      --ignore stringArray       Regexp of file paths (and its contents) to ignore.
-                                 If specifying both file paths and contents ignore regexp, split them by ':'.
-                                 Example (ignore dist directory): --ignore '^dist/'
-                                 Example (ignore import statements in js files): --ignore '\.m?[jt]s$:^import'
-      --log-level string         Log level (debug, info, warn, error)
-      --micro                    Splits query to detect micro-clones (has performance implications!)
-  -r, --repo string              Source git directory (supports bare)
-      --timeout-seconds int      Timeout for detecting clones in seconds (default 60)
-  -t, --to string                Target git ref to compare from. Usually later in time.
-                                 Can accept special value "WORKTREE" to specify the current worktree.
-  -v, --version                  version for iccheck
+      --algorithm string              Clone search algorithm to use (fleccs, ncdsearch) (default "fleccs")
+      --algorithm-param stringArray   (Advanced) Parameters of the algorithm, consult code for syntax.
+      --disable-default-ignore        Disable default ignore configs
+      --fail-code int                 Exit code if it detects any inconsistent changes
+      --format string                 Format type (console, json, github) (default "console")
+  -f, --from string                   Base git ref to compare against. Usually earlier in time.
+  -h, --help                          help for iccheck
+      --ignore stringArray            Regexp of file paths (and its contents) to ignore.
+                                      If specifying both file paths and contents ignore regexp, split them by ':'.
+                                      Example (ignore dist directory): --ignore '^dist/'
+                                      Example (ignore import statements in js files): --ignore '\.m?[jt]s$:^import'
+      --log-level string              Log level (debug, info, warn, error)
+      --micro                         Splits query to detect micro-clones (has performance implications!)
+  -r, --repo string                   Source git directory (supports bare)
+      --timeout-seconds int           Timeout for detecting clones in seconds (default 60)
+  -t, --to string                     Target git ref to compare from. Usually later in time.
+                                      Can accept special value "WORKTREE" to specify the current worktree.
+  -v, --version                       version for iccheck
 
 Use "iccheck [command] --help" for more information about a command.
 ```
