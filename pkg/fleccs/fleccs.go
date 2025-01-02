@@ -104,20 +104,20 @@ func disc(bigram1, bigram2 strs.BigramSet) float64 {
 
 // waDiSC returns Weighted-Average DiSC (Dice-Sørensen Coefficient).
 func waDiSC(lengths1, lengths2 []int, bigrams1, bigrams2 []strs.BigramSet) float64 {
-	discs := lo.Map(bigrams1, func(bigram1 strs.BigramSet, idx int) float64 {
-		return disc(bigram1, bigrams2[idx])
-	})
 	totalLength := lo.Sum(lengths1) + lo.Sum(lengths2)
 	if totalLength == 0 {
 		return 0
 	}
-	weightedDiscs := lo.Map(discs, func(disc float64, idx int) float64 {
-		l1 := lengths1[idx]
-		l2 := lengths2[idx]
-		weight := float64(l1+l2) / float64(totalLength)
-		return disc * weight
-	})
-	return lo.Sum(weightedDiscs)
+
+	var ret float64
+	for i := range bigrams1 {
+		discV := disc(bigrams1[i], bigrams2[i])
+		l1 := lengths1[i]
+		l2 := lengths2[i]
+		weight := float64(l1 + l2)
+		ret += discV * weight
+	}
+	return ret / float64(totalLength)
 }
 
 func findCandidates(
