@@ -57,6 +57,8 @@ Clone set #0 - 5 out of 6 clones are likely missing consistent change(s).
 ICCheck has found changes between HEAD commit and the worktree, and found that you are possibly
 missing changes to the reported locations.
 
+### CLI Flags
+
 Running `iccheck --help` displays help message.
 
 ```text
@@ -92,6 +94,13 @@ Flags:
 
 Use "iccheck [command] --help" for more information about a command.
 ```
+
+ICCheck also reads flag values from environment variables, prefixed by `ICCHECK_`.
+For example, to set the equivalent of cli argument `--from=HEAD` from environment variable,
+set `ICCHECK_FROM` environment variable to `HEAD`.
+If both cli args and env vars are set, cli args are preferred.
+
+Reading config from environment variables applies to all commands, including the LSP server.
 
 ### CLI Output Format
 

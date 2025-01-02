@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 	"golang.org/x/term"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -152,6 +154,33 @@ Example (ignore import statements in js files): --ignore '\.m?[jt]s$:^import'`)
 	// Add child commands
 	RootCmd.AddCommand(lspCmd)
 	RootCmd.AddCommand(searchCmd)
+
+	// Automatic env from viper
+	// see: https://github.com/spf13/viper/issues/397
+	viper.SetEnvPrefix("ICCHECK")
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	viper.AutomaticEnv()
+	cobra.OnInitialize(func() {
+		postInitCommands(RootCmd)
+	})
+}
+
+func postInitCommands(cmd *cobra.Command) {
+	presetRequiredFlags(cmd)
+	if cmd.HasSubCommands() {
+		for _, subCmd := range cmd.Commands() {
+			postInitCommands(subCmd)
+		}
+	}
+}
+
+func presetRequiredFlags(cmd *cobra.Command) {
+	lo.Must0(viper.BindPFlags(cmd.Flags()))
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		if viper.IsSet(f.Name) {
+			lo.Must0(cmd.Flags().Set(f.Name, viper.GetString(f.Name)))
+		}
+	})
 }
 
 func autoDetermineLogLevel() string {
