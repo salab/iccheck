@@ -198,10 +198,10 @@ func (h *handler) getCloneSets(ctx context.Context, gitPath string) ([]*domain.C
 		return nil, errors.Wrap(err, "creating domain tree")
 	}
 
-	// Read ignore rules
-	ignore, err := h.ignoreRulesCache.Get(ctx, gitFullPath)
+	// Read search config
+	searchConf, err := h.searchConfCache.Get(ctx, gitFullPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "getting ignore rules cache from %v", gitFullPath)
+		return nil, errors.Wrapf(err, "getting search config for %v", gitFullPath)
 	}
 
 	// Calculate
@@ -210,7 +210,7 @@ func (h *handler) getCloneSets(ctx context.Context, gitPath string) ([]*domain.C
 		return nil, err
 	}
 	slog.Info(fmt.Sprintf("%d changed text chunk(s) were found within %d changed file(s).", len(queries), changedFiles))
-	cloneSets, err := search.Search(ctx, h.algorithm, queries, worktree, ignore, h.detectMicro)
+	cloneSets, err := search.Search(ctx, h.algorithm, queries, worktree, searchConf)
 	if err != nil {
 		return nil, err
 	}

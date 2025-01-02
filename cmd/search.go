@@ -31,10 +31,6 @@ search is a low-level command to search for code clones.
 		if err := setLogLevel(); err != nil {
 			return err
 		}
-		ignore, err := readIgnoreRules()
-		if err != nil {
-			return err
-		}
 		repoDir, err := getRepoDir()
 		if err != nil {
 			return err
@@ -42,6 +38,10 @@ search is a low-level command to search for code clones.
 		repo, err := git.PlainOpen(repoDir)
 		if err != nil {
 			return errors.Wrapf(err, "opening repository at %v", repoDir)
+		}
+		searchConf, err := searchConfig(repoDir)
+		if err != nil {
+			return err
 		}
 
 		searchTree, err := resolveTree(repo, searchRef)
@@ -74,7 +74,7 @@ search is a low-level command to search for code clones.
 		}
 
 		// Search for clones and report
-		cloneSets, err := search.Search(ctx, algorithm, []*domain.Source{query}, searchTree, ignore, detectMicro)
+		cloneSets, err := search.Search(ctx, algorithm, []*domain.Source{query}, searchTree, searchConf)
 		if err != nil {
 			return err
 		}

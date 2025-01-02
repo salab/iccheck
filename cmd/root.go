@@ -40,10 +40,6 @@ Finds inconsistent changes in your git changes.`, cli.GetFormattedVersion()),
 		if err := setLogLevel(); err != nil {
 			return err
 		}
-		ignore, err := readIgnoreRules()
-		if err != nil {
-			return err
-		}
 		repoDir, err := getRepoDir()
 		if err != nil {
 			return err
@@ -51,6 +47,10 @@ Finds inconsistent changes in your git changes.`, cli.GetFormattedVersion()),
 		repo, err := git.PlainOpen(repoDir)
 		if err != nil {
 			return errors.Wrapf(err, "opening repository at %v", repoDir)
+		}
+		searchConf, err := searchConfig(repoDir)
+		if err != nil {
+			return err
 		}
 
 		if fromRef == "" && toRef != "" {
@@ -83,7 +83,7 @@ Finds inconsistent changes in your git changes.`, cli.GetFormattedVersion()),
 		for i, q := range queries {
 			slog.Debug(fmt.Sprintf("Query#%d", i), "query", q)
 		}
-		cloneSets, err := search.Search(ctx, algorithm, queries, toTree, ignore, detectMicro)
+		cloneSets, err := search.Search(ctx, algorithm, queries, toTree, searchConf)
 		if err != nil {
 			return err
 		}
@@ -120,6 +120,17 @@ var (
 	disableDefaultIgnore bool
 	detectMicro          bool
 )
+
+func searchConfig(repoDir string) (*search.Config, error) {
+	ignore, err := readIgnoreRules(repoDir)
+	if err != nil {
+		return nil, err
+	}
+	return &search.Config{
+		Ignore:      ignore,
+		DetectMicro: detectMicro,
+	}, nil
+}
 
 func init() {
 	// Root command specific
@@ -211,7 +222,7 @@ func setLogLevel() error {
 	return nil
 }
 
-func readIgnoreRules() (domain.IgnoreRules, error) {
+func readIgnoreRules(repoDir string) (domain.IgnoreRules, error) {
 	ignore, err := domain.ReadIgnoreRules(repoDir, ignoreCLIOptions, disableDefaultIgnore)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading ignore rules")

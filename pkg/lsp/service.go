@@ -8,6 +8,7 @@ import (
 	"github.com/kevinms/leakybucket-go"
 	"github.com/motoki317/sc"
 	"github.com/salab/iccheck/pkg/domain"
+	"github.com/salab/iccheck/pkg/search"
 	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/samber/lo"
 	"github.com/sourcegraph/jsonrpc2"
@@ -19,8 +20,7 @@ import (
 type handler struct {
 	conn *jsonrpc2.Conn
 
-	ignoreRulesCache *sc.Cache[string, domain.IgnoreRules]
-	detectMicro      bool
+	searchConfCache *sc.Cache[string, *search.Config]
 
 	filesCache          *sc.Cache[string, []string]
 	analyzeCache        *sc.Cache[string, struct{}]
@@ -45,9 +45,7 @@ const bucketCapacitySeconds = 30
 func NewHandler(
 	algorithm string,
 	timeout time.Duration,
-	ignoreCLIOptions []string,
-	disableDefaultIgnore bool,
-	detectMicro bool,
+	getSearchConf func(repoDir string) (*search.Config, error),
 ) jsonrpc2.Handler {
 	h := &handler{
 		algorithm: algorithm,
@@ -56,10 +54,9 @@ func NewHandler(
 		openFiles: ds.SyncMap[string, string]{},
 	}
 
-	h.ignoreRulesCache = sc.NewMust(func(ctx context.Context, repoDir string) (domain.IgnoreRules, error) {
-		return domain.ReadIgnoreRules(repoDir, ignoreCLIOptions, disableDefaultIgnore)
+	h.searchConfCache = sc.NewMust(func(ctx context.Context, repoDir string) (*search.Config, error) {
+		return getSearchConf(repoDir)
 	}, time.Minute, 2*time.Minute)
-	h.detectMicro = detectMicro
 
 	// Dedupe calls to clone set calculation
 	h.filesCache = sc.NewMust(h.readFile, time.Minute, time.Minute, sc.EnableStrictCoalescing())

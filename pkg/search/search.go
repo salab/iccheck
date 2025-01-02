@@ -290,15 +290,19 @@ func DiffTrees(
 	return queries, len(filePatches), nil
 }
 
+type Config struct {
+	Ignore      domain.IgnoreRules
+	DetectMicro bool
+}
+
 func Search(
 	ctx context.Context,
 	algorithmName string,
 	queries []*domain.Source,
 	searchTree domain.Tree,
-	ignore domain.IgnoreRules,
-	micro bool,
+	c *Config,
 ) ([]*domain.CloneSet, error) {
-	if micro {
+	if c.DetectMicro {
 		// Cut diffs into 3 lines for detecting micro-clones
 		queries = ds.FlatMap(queries, func(c *domain.Source) []*domain.Source {
 			return c.SlideCut(3)
@@ -311,7 +315,7 @@ func Search(
 		return nil, fmt.Errorf("invalid algorithm name: %v", algorithmName)
 	}
 	searcher := domain.NewSearcherFromTree(searchTree)
-	clones, err := algorithmFn(ctx, searcher, queries, searcher, ignore)
+	clones, err := algorithmFn(ctx, searcher, queries, searcher, c.Ignore)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching for clones")
 	}
