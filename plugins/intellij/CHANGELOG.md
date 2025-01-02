@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+## [0.8.1] - 2025-01-02
+
+- 3bf567e8d2d51e51ce6aab0cb09507bc6794cbcd v0.8.1
+- 93d769fd31cf83f5efbbcd746aa6006187e5fb0a refactor/perf: Compact memory
+- 5a41ba147b7ce463a704681794f189528a8fc688 perf: Reduce alloc
+- dac7a457fd1ab0a08c01ef8e18ede5627bcad0f6 chores: fix test
+- c9c1f185052d262e03b47f65fe95a98c6d24df9e feat: Allow configuring algorithm parameters
+- a2ed74e93808047d6400b8de6b223ed5de5c2acb chores: Update packages
+- b6faae03c8b6e8a6736f8f1d7cf052cb7facb814 refactor: Pass config by struct
+- bc418370fa0c45a07038934cb6d9e85e22593f11 feat: Allow configure from env var
+- 76ca3d1d0e987934305ea560d85db0e90f36ca32 feat: Detect micro-clone option
+- 8a026ec9f7fd0c4bd80ddda7fa3f44e815837d59 Merge pull request #20 from salab/intellij-changelog-update-0.8.0
+- db187e3782cdf47a65f4af40a93aaee4b8fd5e95 IntelliJ Changelog Update - 0.8.0
+
 ## [0.8.0] - 2024-12-09
 
 - 1d271d8e70cc55c86299e268623bb59f9d06fb14 v0.8.0
@@ -196,7 +210,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/salab/iccheck/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/salab/iccheck/compare/v0.7.6...v0.8.0
 [0.7.6]: https://github.com/salab/iccheck/compare/v0.7.5...v0.7.6
 [0.7.5]: https://github.com/salab/iccheck/compare/v0.7.4...v0.7.5
