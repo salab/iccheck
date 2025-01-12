@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [0.8.2] - 2025-01-12
+
+- 8c0d3fbb41075f3eeacd45cc0bb3337750339391 v0.8.2
+- ddd09567ce2c153fcbbb4d90d07663d005e27cad fix: LSP in windows
+- 12e3f8902fb99068e38f3a548986a10b05faceca Merge pull request #21 from salab/intellij-changelog-update-0.8.1
+- e5f65593095714d98d051ac7cd56ceedee43fc35 IntelliJ Changelog Update - 0.8.1
+
 ## [0.8.1] - 2025-01-02
 
 - 3bf567e8d2d51e51ce6aab0cb09507bc6794cbcd v0.8.1
@@ -210,7 +217,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.8.2...HEAD
+[0.8.2]: https://github.com/salab/iccheck/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/salab/iccheck/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/salab/iccheck/compare/v0.7.6...v0.8.0
 [0.7.6]: https://github.com/salab/iccheck/compare/v0.7.5...v0.7.6
