@@ -3,8 +3,10 @@ package lsp
 import (
 	"context"
 	"encoding/json"
+	"github.com/samber/lo"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/sourcegraph/go-lsp"
@@ -15,14 +17,39 @@ import (
 )
 
 const fileURIPrefix = "file://"
+const lspPathSeparator = "/" // LSP seems to use "/" regardless of the current OS
+
+func filepathParts(path string) []string {
+	dir, last := filepath.Split(path)
+	if dir == "" {
+		return []string{last}
+	}
+	return append(filepathParts(filepath.Clean(dir)), last)
+}
+
+func (h *handler) osToLSPFilepath(path string) string {
+	if runtime.GOOS != "windows" {
+		return path
+	}
+	parts := filepathParts(path)
+	return strings.Join(parts, lspPathSeparator)
+}
+
+func (h *handler) lspToOSFilepath(path string) string {
+	if runtime.GOOS != "windows" {
+		return path
+	}
+	parts := strings.Split(path, lspPathSeparator)
+	return filepath.Join(parts...)
+}
 
 func (h *handler) trimFilePrefix(uri lsp.DocumentURI) string {
 	fullPath := strings.TrimPrefix(string(uri), fileURIPrefix)
-	return strings.TrimPrefix(fullPath, h.rootPath+string(os.PathSeparator))
+	return strings.TrimPrefix(fullPath, h.lspRootPath+lspPathSeparator)
 }
 
 func (h *handler) appendFilePrefix(relPathInProject string) lsp.DocumentURI {
-	fullPath := filepath.Join(h.rootPath, relPathInProject)
+	fullPath := h.lspRootPath + lspPathSeparator + relPathInProject
 	return lsp.DocumentURI(fileURIPrefix + fullPath)
 }
 
@@ -54,7 +81,19 @@ func (h *handler) handleInitialize(_ context.Context, _ *jsonrpc2.Conn, req *jso
 		return nil, err
 	}
 
-	h.rootPath = strings.TrimPrefix(string(params.RootURI), fileURIPrefix)
+	h.lspRootPath = strings.TrimPrefix(string(params.RootURI), fileURIPrefix)
+	{
+		// chdir so relative file references will work as intended
+		absPath := filepath.Clean(h.lspRootPath)
+		if runtime.GOOS == "windows" {
+			if strings.HasPrefix(absPath, "\\") {
+				absPath = strings.TrimPrefix(absPath, "\\") // Does not need "\" before volume label for some reason
+			} else {
+				absPath = "\\\\" + absPath // To UNC path
+			}
+		}
+		lo.Must0(os.Chdir(absPath))
+	}
 
 	return initializeResult{
 		Capabilities: serverCapabilities{
@@ -122,16 +161,16 @@ func (h *handler) handleTextDocumentDidClose(_ context.Context, _ *jsonrpc2.Conn
 }
 
 func (h *handler) notifyAnalysisForPath(filePath string) {
-	gitPath, ok := getGitRoot(h.rootPath, filePath)
+	gitPath, ok := getGitRoot(filePath)
 	if ok {
-		gitFullPath := strings.Join(gitPath, string(os.PathSeparator))
+		gitFullPath := filepath.Join(gitPath...)
 		h.debouncedAnalyze(gitFullPath)
 	}
 }
 
 type textDocumentDiagnosticParams struct {
 	TextDocument struct {
-		URI string `json:"uri"`
+		URI lsp.DocumentURI `json:"uri"`
 	} `json:"textDocument"`
 }
 
@@ -171,7 +210,7 @@ func (h *handler) handleTextDocumentReferences(_ context.Context, _ *jsonrpc2.Co
 
 	locations := make([]*lsp.Location, 0)
 	filePath := h.trimFilePrefix(params.TextDocument.URI)
-	gitPathElements, ok := getGitRoot(h.rootPath, filePath)
+	gitPathElements, ok := getGitRoot(filePath)
 	if !ok {
 		return locations, nil
 	}

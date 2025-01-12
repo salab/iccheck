@@ -19,16 +19,15 @@ import (
 const analyzeSourceName = "ICCheck"
 const analyzeCodeName = "Consistency check"
 
-func getGitRoot(root string, filename string) ([]string, bool) {
-	path := strings.Split(filename, string(os.PathSeparator))
+func getGitRoot(filename string) ([]string, bool) {
+	path := strings.Split(filename, lspPathSeparator)
 	for i := len(path) - 1; i >= 0; i-- {
-		gitPath := []string{root}
-		gitPath = append(gitPath, path[0:i]...)
-		gitPath = append(gitPath, ".git")
-		gitFullPath := filepath.Join(gitPath...)
-		info, err := os.Stat(gitFullPath)
+		var parts []string
+		parts = append(parts, path[0:i]...)
+		parts = append(parts, ".git")
+		info, err := os.Stat(filepath.Join(parts...))
 		if err == nil && info.IsDir() {
-			return gitPath[1 : len(gitPath)-1], true
+			return parts[:len(parts)-1], true
 		}
 	}
 	return nil, false
@@ -80,7 +79,7 @@ func (h *handler) analyzePath(ctx context.Context, gitPath string) (struct{}, er
 			detectedPath := filepath.Join(gitPath, c.Filename)
 			lines, err := h.filesCache.Get(ctx, detectedPath)
 			if err != nil {
-				return struct{}{}, err
+				return struct{}{}, errors.Wrapf(err, "getting file contents for %s", detectedPath)
 			}
 
 			message := fmt.Sprintf(
@@ -88,7 +87,8 @@ func (h *handler) analyzePath(ctx context.Context, gitPath string) (struct{}, er
 				len(cs.Changed), len(cs.Changed)+len(cs.Missing),
 				readablePaths(c.Filename, cs.Changed, filepathDisplayLimit),
 			)
-			diagnostics[detectedPath] = append(diagnostics[detectedPath], &lsp.Diagnostic{
+			lspPath := h.osToLSPFilepath(detectedPath)
+			diagnostics[lspPath] = append(diagnostics[lspPath], &lsp.Diagnostic{
 				Range:    toLSPRange(c, lines),
 				Severity: lsp.Warning,
 				Code:     analyzeCodeName,
@@ -102,7 +102,7 @@ func (h *handler) analyzePath(ctx context.Context, gitPath string) (struct{}, er
 			detectedPath := filepath.Join(gitPath, c.Filename)
 			lines, err := h.filesCache.Get(ctx, detectedPath)
 			if err != nil {
-				return struct{}{}, err
+				return struct{}{}, errors.Wrapf(err, "getting file contents for %s", detectedPath)
 			}
 
 			var message string
@@ -129,7 +129,8 @@ func (h *handler) analyzePath(ctx context.Context, gitPath string) (struct{}, er
 				)
 				severity = lsp.Info
 			}
-			diagnostics[detectedPath] = append(diagnostics[detectedPath], &lsp.Diagnostic{
+			lspPath := h.osToLSPFilepath(detectedPath)
+			diagnostics[lspPath] = append(diagnostics[lspPath], &lsp.Diagnostic{
 				Range:    toLSPRange(c, lines),
 				Severity: severity,
 				Code:     analyzeCodeName,
@@ -150,22 +151,22 @@ func (h *handler) analyzePath(ctx context.Context, gitPath string) (struct{}, er
 		}
 	}
 	// Remove old warnings when there are 0 diagnostics remaining in the file
-	prevPaths, _ := h.previousDiagnostics.Load(gitPath)
-	for _, prevPath := range prevPaths {
+	prevDiagnostics, _ := h.previousDiagnostics.Load(gitPath)
+	for prevPath := range prevDiagnostics {
 		if _, ok := diagnostics[prevPath]; !ok {
 			err = h.conn.Notify(ctx, "textDocument/publishDiagnostics", lspPublishDiagnosticsParams{
 				URI:         h.appendFilePrefix(prevPath),
 				Diagnostics: make([]*lsp.Diagnostic, 0),
 			})
 			if err != nil {
-				slog.Warn("failed to clear diagnostics", "file", prevPaths, "error", err)
+				slog.Warn("failed to clear diagnostics", "file", prevPath, "error", err)
 			}
 		}
 	}
 
 	// Store current analysis results and diagnostic paths
 	h.previousAnalysis.Store(gitPath, cloneSets)
-	h.previousDiagnostics.Store(gitPath, lo.Keys(diagnostics))
+	h.previousDiagnostics.Store(gitPath, diagnostics)
 
 	return struct{}{}, nil
 }
@@ -175,8 +176,7 @@ func (h *handler) getCloneSets(ctx context.Context, gitPath string) ([]*domain.C
 	defer cancel()
 
 	// Open repository
-	gitFullPath := filepath.Join(append([]string{h.rootPath}, gitPath)...)
-	repo, err := git.PlainOpen(gitFullPath)
+	repo, err := git.PlainOpen(gitPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "opening git directory")
 	}
@@ -199,20 +199,20 @@ func (h *handler) getCloneSets(ctx context.Context, gitPath string) ([]*domain.C
 	}
 
 	// Read search config
-	searchConf, err := h.searchConfCache.Get(ctx, gitFullPath)
+	searchConf, err := h.searchConfCache.Get(ctx, gitPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "getting search config for %v", gitFullPath)
+		return nil, errors.Wrapf(err, "getting search config for %v", gitPath)
 	}
 
 	// Calculate
 	queries, changedFiles, err := search.DiffTrees(ctx, headTree, worktree)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "diffing tree")
 	}
 	slog.Info(fmt.Sprintf("%d changed text chunk(s) were found within %d changed file(s).", len(queries), changedFiles))
 	cloneSets, err := search.Search(ctx, h.algorithm, queries, worktree, searchConf)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "searching clone sets")
 	}
 	return cloneSets, nil
 }

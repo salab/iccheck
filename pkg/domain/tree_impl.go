@@ -14,6 +14,7 @@ import (
 	"github.com/samber/lo"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 )
 
@@ -79,7 +80,9 @@ func ReadSystemGitignore() ([]gitignore.Pattern, error) {
 		return nil, err
 	}
 	user, err := gitignore.LoadGlobalPatterns(rootFs)
-	if err != nil {
+	// Ignoring error if windows here, because go-git cannot load user home .gitignore for some reason
+	// example error: "open \\C:\\Users\\moto\\.gitconfig: The specified path is invalid."
+	if err != nil && runtime.GOOS != "windows" {
 		return nil, err
 	}
 	return append(system, user...), nil

@@ -10,6 +10,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/theodesp/unionfind"
 	"log/slog"
+	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -216,9 +217,10 @@ func DiffTrees(
 			continue
 		}
 
-		tracker := &chunkTracker{afterFilename: to.Path()}
+		// Windows support: We need to use filepath.Clean here, because Path() git may return "/"-delimited path
+		tracker := &chunkTracker{afterFilename: filepath.Clean(to.Path())}
 		if from != nil {
-			tracker.beforeFilename = from.Path()
+			tracker.beforeFilename = filepath.Clean(from.Path())
 		}
 
 		// Categorize file patch chunks (equal, add, delete) into

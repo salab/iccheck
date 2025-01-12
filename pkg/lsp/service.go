@@ -11,6 +11,7 @@ import (
 	"github.com/salab/iccheck/pkg/search"
 	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/samber/lo"
+	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 	"log/slog"
 	"sync"
@@ -25,13 +26,13 @@ type handler struct {
 	filesCache          *sc.Cache[string, []string]
 	analyzeCache        *sc.Cache[string, struct{}]
 	debouncedAnalyze    func(gitPath string)
-	previousDiagnostics ds.SyncMap[string, []string]
+	previousDiagnostics ds.SyncMap[string, map[string][]*lsp.Diagnostic]
 	previousAnalysis    ds.SyncMap[string, []*domain.CloneSet]
 
-	algorithm string
-	timeout   time.Duration
-	rootPath  string
-	openFiles ds.SyncMap[string, string]
+	algorithm   string
+	timeout     time.Duration
+	lspRootPath string
+	openFiles   ds.SyncMap[string, string]
 
 	limiter     *leakybucket.LeakyBucket
 	limiterLock sync.Mutex

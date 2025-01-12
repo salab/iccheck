@@ -15,8 +15,7 @@ func (h *handler) readFile(_ context.Context, path string) ([]string, error) {
 	if content, ok := h.openFiles.Load(path); ok {
 		return strings.Split(content, "\n"), nil
 	}
-
-	b, err := os.ReadFile(filepath.Join(h.rootPath, path))
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
