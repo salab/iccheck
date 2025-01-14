@@ -11,9 +11,13 @@ jobs:
     name: Inconsistent Change Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-go@v5
       - name: Install ICCheck
-        run: go install github.com/salab/iccheck@latest
+        run: |
+          VERSION=$(curl -Lsf "https://api.github.com/repos/salab/iccheck/releases/latest" | jq -r '.tag_name')
+          DOWNLOAD_URL="https://github.com/salab/iccheck/releases/download/$VERSION/iccheck_${VERSION//v/}_linux_amd64"
+          curl -Lf "$DOWNLOAD_URL" -o iccheck
+          chmod +x iccheck
+          sudo install iccheck /usr/local/bin/
 
       - uses: actions/checkout@v4
         with:
