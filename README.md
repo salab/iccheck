@@ -121,7 +121,7 @@ iccheck --format json | jq -r '":::notice file=\(.filename),line=\(.start_l),end
 An example workflow file:
 
 ```yaml
-name: Change Check
+name: Inconsistent Change Check
 
 on:
   push:
@@ -131,7 +131,7 @@ on:
 
 jobs:
   iccheck:
-    name: Change Check
+    name: Inconsistent Change Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v5
@@ -140,13 +140,9 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          fetch-depth: '0'
-      - name: Determine refs
-        run: |
-          ICCHECK_FROM="${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || 'HEAD^' }}"
-          ICCHECK_TO="HEAD"
+          fetch-depth: '2'
       - name: Check for inconsistent changes
-        run: iccheck --from "$ICCHECK_FROM" --to "$ICCHECK_TO" --format github
+        run: iccheck --from "HEAD^" --to "HEAD" --format github
 ```
 
 ## Editor Extensions

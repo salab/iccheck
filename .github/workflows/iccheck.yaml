@@ -1,0 +1,22 @@
+name: Inconsistent Change Check
+
+on:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+
+jobs:
+  iccheck:
+    name: Inconsistent Change Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v5
+      - name: Install ICCheck
+        run: go install github.com/salab/iccheck@latest
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: '2'
+      - name: Check for inconsistent changes
+        run: iccheck --from "HEAD^" --to "HEAD" --format github
