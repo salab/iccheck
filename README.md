@@ -141,6 +141,7 @@ jobs:
           curl -Lf "$DOWNLOAD_URL" -o iccheck
           chmod +x iccheck
           sudo install iccheck /usr/local/bin/
+          iccheck -v
 
       - uses: actions/checkout@v4
         with:
