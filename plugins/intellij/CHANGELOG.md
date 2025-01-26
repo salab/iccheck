@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2025-01-26
+
+- 125e9e11bb20e3f14fa15729acfc922a9cf3acb0 v0.9.0
+- f54e19fd35c269a71dbce3e9bc2c2f5da3b834ed Remove misleading description
+- fafb23b7ff48758af205947fd010009b969381aa fix: Allow searching for missing addition locations
+- db667b94eb244a8a0bfe69960253167b9b96656e show version
+- ce0e934ef12d133b2e1e20119b1a2665cc35deb3 fix: go install does not work because of replace directive
+- 538f4f8ac4ace9157c99340abd6c8cafe3931e59 Add iccheck workflow
+- 88776bf62514aba99e5ac5710ffbbc103df8f088 Merge pull request #22 from salab/intellij-changelog-update-0.8.2
+- 7d5ad53b67601bb9a37c9ec3dc3937ed08a42fa6 IntelliJ Changelog Update - 0.8.2
+
 ## [0.8.2] - 2025-01-12
 
 - 8c0d3fbb41075f3eeacd45cc0bb3337750339391 v0.8.2
@@ -217,7 +228,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.8.2...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/salab/iccheck/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/salab/iccheck/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/salab/iccheck/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/salab/iccheck/compare/v0.7.6...v0.8.0
