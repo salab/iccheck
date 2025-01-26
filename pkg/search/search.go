@@ -36,11 +36,36 @@ type chunk struct {
 	afterEndL    int
 }
 
-func (c *chunk) searchQuery() *domain.Source {
-	return &domain.Source{
-		Filename: c.afterFilename,
-		StartL:   c.afterStartL,
-		EndL:     c.afterEndL,
+func (c *chunk) searchQuery() []*domain.Source {
+	if c.kind == changeKindAddition {
+		// If this was an addition, search for both:
+		//  - the line before the addition (only if the addition was from line 2 or greater)
+		//  - the whole addition (but including the line before it)
+		// This allows us to find locations which is missing the same addition.
+		// If both queries find the same location, they will be 'squashed' by dedupeDetectedClones() function.
+		if c.afterStartL >= 2 {
+			return []*domain.Source{
+				{
+					Filename: c.afterFilename,
+					StartL:   c.afterStartL - 1,
+					EndL:     c.afterEndL,
+				},
+				{
+					Filename: c.afterFilename,
+					StartL:   c.afterStartL - 1,
+					EndL:     c.afterStartL - 1,
+				},
+			}
+		}
+	}
+	// If this was a deletion, just search for the line just before the deletion
+	// - this is represented by afterStartL to afterEndL.
+	return []*domain.Source{
+		{
+			Filename: c.afterFilename,
+			StartL:   c.afterStartL,
+			EndL:     c.afterEndL,
+		},
 	}
 }
 
@@ -288,7 +313,7 @@ func DiffTrees(
 	}
 
 	// Prepare queries
-	queries := ds.Map(patchChunks, (*chunk).searchQuery)
+	queries := ds.FlatMap(patchChunks, (*chunk).searchQuery)
 	return queries, len(filePatches), nil
 }
 
