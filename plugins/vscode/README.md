@@ -10,8 +10,6 @@ Please note that the way of detecting copy-pasted codes (i.e. cloned codes) is h
 and therefore is not perfect.
 While ICCheck detects many cloned codes correctly, it may also detect many false-positives.
 
-This plugin was developed mainly for academic research.
-
 Repository: https://github.com/salab/iccheck
 
 <!--
