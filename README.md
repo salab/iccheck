@@ -14,8 +14,11 @@ While ICCheck detects many cloned codes correctly, it may also detect many false
 
 ### Command Line Interface (statically-linked binary)
 
-- Download from the [latest releases](https://github.com/salab/iccheck/releases) page.
-- Or, build it from source: `go install github.com/salab/iccheck@latest`
+- Download from the "assets" in [latest releases](https://github.com/salab/iccheck/releases) page.
+    - Find a binary release matching your OS/Arch (for example, if you're using macOS with Apple Silicon chips, darin_arm64 is the right one). For now, we have pre-built binaries for Linux/macOS/Windows and amd64/arm64.
+    - Download the binary file, rename it to `iccheck`, give it execution permission (`chmod +x iccheck` in Linux/macOS), and place it somewhere in your PATH (for example, place it as `/usr/local/bin/iccheck`).
+- ~~Or, build it from source: `go install github.com/salab/iccheck@latest`~~
+    - At this moment, installing from source with `go install` command does not work because of replace directive in go.mod. Please clone the repository and run `go build .` if you want to build from source.
 
 ### GitHub Actions
 
