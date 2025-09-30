@@ -3,16 +3,17 @@ package search
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"path/filepath"
+	"slices"
+	"strings"
+
 	"github.com/go-git/go-git/v5/plumbing/format/diff"
 	"github.com/pkg/errors"
 	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/samber/lo"
 	"github.com/theodesp/unionfind"
-	"log/slog"
-	"path/filepath"
-	"slices"
-	"strings"
 )
 
 type changeKind string
@@ -345,6 +346,9 @@ func Search(
 	searcher := domain.NewSearcherFromTree(searchTree)
 	clones, err := algorithmFn(ctx, searcher, queries, searcher, c)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil, fmt.Errorf("timed out searching for clones, try increasing timeout with --timeout-seconds or ICCHECK_TIMEOUT_SECONDS")
+		}
 		return nil, errors.Wrap(err, "searching for clones")
 	}
 
