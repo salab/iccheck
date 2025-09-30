@@ -133,6 +133,13 @@ For example, one can utilize `jq` to process the JSON stdout into [the GitHub Ac
 iccheck --format json | jq -r '":::notice file=\(.filename),line=\(.start_l),endLine=\(.end_l),title=Possible missing change::Possible missing a consistent change here (L\(.start_l) - L\(.end_l), distance \(.distance))"'
 ```
 
+#### (Advanced) Sorting output by confidence
+
+`--format json` outputs the results in a JSON array, where each item includes `distance` field.
+`distance` indicates the distance between the missing change candidate and the original change,
+and smaller values indicate more similar changes.
+You can use this field to sort the output by distance and display the most "confident" suggestions first.
+
 ## GitHub Actions Usage
 
 An example workflow file:
