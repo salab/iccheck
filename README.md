@@ -106,6 +106,20 @@ If both cli args and env vars are set, cli args are preferred.
 
 Reading config from environment variables applies to all commands, including the LSP server.
 
+#### (Advanced) Algorithm Parameters
+
+`--algorithm-param` accepts a list of parameters for the search algorithm, in the form of `key=value`.
+See [pkg/search/search_impl_adapter.go](./pkg/search/search_impl_adapter.go) for the exact implementation.
+
+Example: `iccheck --algorithm-param "threshold=0.5" --algorithm-param "context-lines=2"`
+
+- (fleccs) `threshold` (float): Threshold for detecting clones. Default: 0.7
+- (fleccs) `context-lines` (int): Number of context lines to use for detecting clones. Default: 4
+- (ncdsearch) `overlap-ngram` (int): Number of n-grams to use for detecting clones. Default: 5
+- (ncdsearch): `filter-threshold` (float): Threshold for filtering out clones. Default: 0.5
+- (ncdsearch): `threshold` (float): Threshold for detecting clones. Default: 0.5
+- (ncdsearch): `window-size-mult` (float): Window size multiplier. Default: 1.2
+
 ### CLI Output Format
 
 ICCheck outputs detected inconsistent changes to stdout, and other logging outputs to stderr.
