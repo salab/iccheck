@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+## [0.10.0] - 2025-10-13
+
+- 828b8628ddab152fbe3e61b36ad2a945c81d9b9f v0.10.0
+- 7b3b8a363ff49077eb968ea604a90e1331ecda83 feat: Implement --include file flag
+- 487f550c24198b723dada657ebc06095968b2972 chores: Improve timeout message
+- bd86538ce6861421c5e80a7ce901fa9819e4f6f3 docs: Add distance doc
+- 6ac33a8b3fc3d339e0440ca14b6639a1c85306b9 docs: Add docs for --algorithm-param cli arg
+- ea63b5eb933c1e15405b58cebbc525f3eac9f3c2 chores: Remove old test code
+- 21927ce048f1db1b83ae328d97f21589a2f0b8e8 Update README.md for easier install instructions
+- 2985f003a8bb35b14c8a635ffdda088d811819c8 Merge pull request #25 from salab/intellij-changelog-update-0.9.0
+- afa1f50e0f81fb71a411aef156c3b6ee13e28176 IntelliJ Changelog Update - 0.9.0
+
 ## [0.9.0] - 2025-01-26
 
 - 125e9e11bb20e3f14fa15729acfc922a9cf3acb0 v0.9.0
@@ -228,7 +240,8 @@
 
 - First release of IntelliJ plugin of ICCheck
 
-[Unreleased]: https://github.com/salab/iccheck/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/salab/iccheck/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/salab/iccheck/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/salab/iccheck/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/salab/iccheck/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/salab/iccheck/compare/v0.8.0...v0.8.1
