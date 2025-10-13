@@ -319,7 +319,7 @@ func DiffTrees(
 }
 
 type Config struct {
-	Ignore      domain.IgnoreRules
+	Matcher     *domain.MatcherRules
 	DetectMicro bool
 	AlgoParams  map[string]string
 }

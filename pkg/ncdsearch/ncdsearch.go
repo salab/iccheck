@@ -8,15 +8,16 @@ package ncdsearch
 import (
 	"context"
 	"fmt"
+	"math"
+	"runtime"
+	"slices"
+	"sort"
+
 	"github.com/pkg/errors"
 	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/utils/ds"
 	"github.com/samber/lo"
 	"github.com/sourcegraph/conc/pool"
-	"math"
-	"runtime"
-	"slices"
-	"sort"
 
 	"github.com/salab/iccheck/pkg/utils/files"
 	"github.com/salab/iccheck/pkg/utils/strs"
@@ -149,7 +150,7 @@ func fileSearch(
 	queries []*Query,
 	searchTree domain.Searcher,
 	searchFilename string,
-	ignore domain.IgnoreRules,
+	matcher *domain.MatcherRules,
 ) ([]*Clone, error) {
 	if ctx.Err() != nil { // check for deadline
 		return nil, ctx.Err()
@@ -175,7 +176,7 @@ func fileSearch(
 	}
 
 	// Check ignore settings
-	skipEntireFile, ignoreRule := ignore.Match(searchFilename, fileContent)
+	skipEntireFile, ignoreRule := matcher.Match(searchFilename, fileContent)
 	if skipEntireFile {
 		return nil, nil
 	}
@@ -246,7 +247,7 @@ func Search(
 	queriesTree domain.Searcher,
 	queries []*Query,
 	searchTree domain.Searcher,
-	ignore domain.IgnoreRules,
+	matcher *domain.MatcherRules,
 	options ...ConfigFunc,
 ) ([]*Clone, error) {
 	c := applyConfig(options...)
@@ -273,7 +274,7 @@ func Search(
 		WithFirstError()
 	for _, searchFile := range searchFiles {
 		p.Go(func(ctx context.Context) ([]*Clone, error) {
-			return fileSearch(ctx, c, queries, searchTree, searchFile, ignore)
+			return fileSearch(ctx, c, queries, searchTree, searchFile, matcher)
 		})
 	}
 	results, err := p.Wait()

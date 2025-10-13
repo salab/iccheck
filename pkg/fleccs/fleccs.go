@@ -7,6 +7,8 @@ package fleccs
 
 import (
 	"context"
+	"runtime"
+
 	"github.com/cespare/xxhash"
 	"github.com/pkg/errors"
 	"github.com/salab/iccheck/pkg/domain"
@@ -15,7 +17,6 @@ import (
 	"github.com/salab/iccheck/pkg/utils/strs"
 	"github.com/samber/lo"
 	"github.com/sourcegraph/conc/pool"
-	"runtime"
 )
 
 type Source struct {
@@ -168,7 +169,7 @@ func fileSearch(
 	queries []*Query,
 	searchTree domain.Searcher,
 	searchFilename string,
-	ignore domain.IgnoreRules,
+	matcher *domain.MatcherRules,
 	similarityThreshold float64,
 ) ([]*Candidate, error) {
 	if ctx.Err() != nil { // check for deadline
@@ -195,7 +196,7 @@ func fileSearch(
 	}
 
 	// Check ignore settings
-	skipEntireFile, ignoreRule := ignore.Match(searchFilename, fileContent)
+	skipEntireFile, ignoreRule := matcher.Match(searchFilename, fileContent)
 	if skipEntireFile {
 		return nil, nil
 	}
@@ -226,7 +227,7 @@ func Search(
 	queriesTree domain.Searcher,
 	queries []*Query,
 	searchTree domain.Searcher,
-	ignore domain.IgnoreRules,
+	matcher *domain.MatcherRules,
 	options ...ConfigFunc,
 ) ([]*Candidate, error) {
 	// Calculate config
@@ -255,7 +256,7 @@ func Search(
 		WithFirstError()
 	for _, searchFile := range searchFiles {
 		p.Go(func(ctx context.Context) ([]*Candidate, error) {
-			return fileSearch(ctx, queries, searchTree, searchFile, ignore, c.similarityThreshold)
+			return fileSearch(ctx, queries, searchTree, searchFile, matcher, c.similarityThreshold)
 		})
 	}
 	candidates, err := p.Wait()

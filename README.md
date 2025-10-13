@@ -88,6 +88,9 @@ Flags:
                                       If specifying both file paths and contents ignore regexp, split them by ':'.
                                       Example (ignore dist directory): --ignore '^dist/'
                                       Example (ignore import statements in js files): --ignore '\.m?[jt]s$:^import'
+      --include stringArray           Regexp of file paths (and its contents) to include.
+                                      If specified, only matching files will be considered.
+                                      Example (include only src directory): --include '^src/'
       --log-level string              Log level (debug, info, warn, error)
       --micro                         Splits query to detect micro-clones (has performance implications!)
   -r, --repo string                   Source git directory (supports bare)

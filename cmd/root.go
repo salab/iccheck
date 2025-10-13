@@ -3,14 +3,15 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
-	"golang.org/x/term"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+	"golang.org/x/term"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -114,12 +115,15 @@ var (
 )
 
 var (
-	logLevel             string
-	algorithm            string
-	algorithmParam       []string
+	logLevel       string
+	algorithm      string
+	algorithmParam []string
+
 	ignoreCLIOptions     []string
 	disableDefaultIgnore bool
-	detectMicro          bool
+	includeCLIOptions    []string
+
+	detectMicro bool
 )
 
 func searchConfig(repoDir string) (*search.Config, error) {
@@ -142,7 +146,7 @@ func searchConfig(repoDir string) (*search.Config, error) {
 	}
 
 	return &search.Config{
-		Ignore:      ignore,
+		Matcher:     ignore,
 		DetectMicro: detectMicro,
 		AlgoParams:  params,
 	}, nil
@@ -169,11 +173,16 @@ Can accept special value "WORKTREE" to specify the current worktree.`)
 	pfs.StringVar(&logLevel, "log-level", "", "Log level (debug, info, warn, error)")
 	pfs.StringVar(&algorithm, "algorithm", "fleccs", "Clone search algorithm to use (fleccs, ncdsearch)")
 	pfs.StringArrayVar(&algorithmParam, "algorithm-param", nil, "(Advanced) Parameters of the algorithm, consult code for syntax.")
+
 	pfs.StringArrayVar(&ignoreCLIOptions, "ignore", nil, `Regexp of file paths (and its contents) to ignore.
 If specifying both file paths and contents ignore regexp, split them by ':'.
 Example (ignore dist directory): --ignore '^dist/'
 Example (ignore import statements in js files): --ignore '\.m?[jt]s$:^import'`)
 	pfs.BoolVar(&disableDefaultIgnore, "disable-default-ignore", false, "Disable default ignore configs")
+	pfs.StringArrayVar(&includeCLIOptions, "include", nil, `Regexp of file paths (and its contents) to include.
+If specified, only matching files will be considered.
+Example (include only src directory): --include '^src/'`)
+
 	pfs.BoolVar(&detectMicro, "micro", false, "Splits query to detect micro-clones (has performance implications!)")
 
 	// Disable "completion" command
@@ -239,8 +248,8 @@ func setLogLevel() error {
 	return nil
 }
 
-func readIgnoreRules(repoDir string) (domain.IgnoreRules, error) {
-	ignore, err := domain.ReadIgnoreRules(repoDir, ignoreCLIOptions, disableDefaultIgnore)
+func readIgnoreRules(repoDir string) (*domain.MatcherRules, error) {
+	ignore, err := domain.ReadMatcherRules(repoDir, disableDefaultIgnore, ignoreCLIOptions, includeCLIOptions)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reading ignore rules")
 	}

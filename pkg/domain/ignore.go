@@ -3,19 +3,21 @@ package domain
 import (
 	"errors"
 	"fmt"
-	"github.com/salab/iccheck/pkg/utils/ds"
-	"github.com/salab/iccheck/pkg/utils/files"
-	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/salab/iccheck/pkg/utils/ds"
+	"github.com/salab/iccheck/pkg/utils/files"
+	"github.com/samber/lo"
+	"gopkg.in/yaml.v3"
 )
 
 // defaultIgnoreConfigs lists rules (that are pretty much safe to assume) for some languages.
 // To contributors: Feel free to add more to this default config.
-var defaultIgnoreConfigs = IgnoreConfigs{
+var defaultIgnoreConfigs = []*IgnoreConfig{
 	{
 		Files: []string{"\\.go$"},
 		Patterns: []string{
@@ -39,10 +41,10 @@ var defaultIgnoreConfigs = IgnoreConfigs{
 	},
 }
 
-func ReadIgnoreRules(repoDir string, cliOptions []string, disableDefault bool) (IgnoreRules, error) {
-	allConfigs := make(IgnoreConfigs, 0)
+func ReadMatcherRules(repoDir string, disableDefault bool, ignoreCLIOptions, includeCLIOptions []string) (*MatcherRules, error) {
+	var matchers MatcherConfigs
 	if !disableDefault {
-		allConfigs = append(allConfigs, defaultIgnoreConfigs...)
+		matchers.ignores = append(matchers.ignores, defaultIgnoreConfigs...)
 	}
 
 	// Check if ignore file is present in the following locations:
@@ -59,28 +61,27 @@ func ReadIgnoreRules(repoDir string, cliOptions []string, disableDefault bool) (
 	}
 	for _, path := range paths {
 		if f, err := os.Open(path); err == nil {
-			var configs IgnoreConfigs
+			var configs []*IgnoreConfig
 			if err = yaml.NewDecoder(f).Decode(&configs); err != nil {
 				return nil, fmt.Errorf("decoding %s: %w", path, err)
 			}
-			allConfigs = append(allConfigs, configs...)
+			matchers.ignores = append(matchers.ignores, configs...)
 		}
 		// Ignore os.Open() error - file might not exist
 	}
 
 	// Parse CLI options, if any
-	for _, cliOption := range cliOptions {
-		config, err := readIgnoreCLIOption(cliOption)
+	for _, ignoreCLIOption := range ignoreCLIOptions {
+		config, err := readIgnoreCLIOption(ignoreCLIOption)
 		if err != nil {
 			return nil, err
 		}
-		allConfigs = append(allConfigs, config)
+		matchers.ignores = append(matchers.ignores, config)
 	}
+	matchers.includes = includeCLIOptions
 
-	return allConfigs.Compile()
+	return matchers.Compile()
 }
-
-type IgnoreConfigs []*IgnoreConfig
 
 type IgnoreConfig struct {
 	Files    []string `yaml:"files"`
@@ -131,11 +132,30 @@ func (i *IgnoreConfig) Compile() (*IgnoreRule, error) {
 	return &ret, nil
 }
 
-func (i IgnoreConfigs) Compile() (IgnoreRules, error) {
-	return ds.MapError(i, (*IgnoreConfig).Compile)
+type MatcherConfigs struct {
+	includes []string
+	ignores  []*IgnoreConfig
 }
 
-type IgnoreRules []*IgnoreRule
+func (m *MatcherConfigs) Compile() (*MatcherRules, error) {
+	ignoreRules, err := ds.MapError(m.ignores, (*IgnoreConfig).Compile)
+	if err != nil {
+		return nil, err
+	}
+	includeFiles, err := ds.MapError(m.includes, regexp.Compile)
+	if err != nil {
+		return nil, err
+	}
+	return &MatcherRules{
+		includeFiles: includeFiles,
+		ignoreRules:  ignoreRules,
+	}, nil
+}
+
+type MatcherRules struct {
+	includeFiles []*regexp.Regexp
+	ignoreRules  []*IgnoreRule
+}
 
 type IgnoreRule struct {
 	files    []*regexp.Regexp
@@ -184,10 +204,20 @@ func (i *IgnoreRule) matchContents(contents []byte) (ignoreLines map[int]struct{
 // If skipEntireFile is true, callers are expected to skip this entire file (ignoreRule is nil).
 // Otherwise, callers are expected to call IgnoreLineRule.CanSkip() method according to its doc to
 // check file ignore pattern.
-func (i IgnoreRules) Match(path string, contents []byte) (skipEntireFile bool, ignoreRule *IgnoreLineRule) {
+func (m *MatcherRules) Match(path string, contents []byte) (skipEntireFile bool, ignoreRule *IgnoreLineRule) {
+	// Check if we have --include option specified, if so, only consider the matching files
+	if len(m.includeFiles) > 0 {
+		match := lo.SomeBy(m.includeFiles, func(r *regexp.Regexp) bool {
+			return r.MatchString(path)
+		})
+		if !match {
+			return true, nil
+		}
+	}
+
 	// Check if any patterns match the whole file first
 	instances := make([]*IgnoreRule, 0)
-	for _, instance := range i {
+	for _, instance := range m.ignoreRules {
 		matchFile := instance.matchFile(path)
 		if !matchFile {
 			continue

@@ -2,12 +2,13 @@ package search
 
 import (
 	"context"
+	"strconv"
+
 	"github.com/pkg/errors"
 	"github.com/salab/iccheck/pkg/domain"
 	"github.com/salab/iccheck/pkg/fleccs"
 	"github.com/salab/iccheck/pkg/ncdsearch"
 	"github.com/salab/iccheck/pkg/utils/ds"
-	"strconv"
 )
 
 type AlgorithmFunc = func(
@@ -76,7 +77,7 @@ func ncdSearchReImpl(
 		sourceTree,
 		queries,
 		searchTree,
-		c.Ignore,
+		c.Matcher,
 		opts...,
 	)
 	if err != nil {
@@ -131,7 +132,7 @@ func fleccsSearchMulti(
 		sourceTree,
 		queries,
 		searchTree,
-		c.Ignore,
+		c.Matcher,
 		opts...,
 	)
 	if err != nil {

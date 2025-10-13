@@ -178,7 +178,7 @@ func main() {
 }
 `
 
-	i := IgnoreConfigs{
+	i := []*IgnoreConfig{
 		// Ignore whole file rule
 		{
 			Files: []string{"^dist/"},
@@ -197,7 +197,11 @@ func main() {
 			},
 		},
 	}
-	c, err := i.Compile()
+	m := MatcherConfigs{
+		includes: nil,
+		ignores:  i,
+	}
+	c, err := m.Compile()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,5 +247,48 @@ func main() {
 		if !reflect.DeepEqual(ignoreRule.IgnoreLines, wantIgnoreLines) {
 			t.Errorf("got %v, want %v", ignoreRule.IgnoreLines, wantIgnoreLines)
 		}
+	}
+}
+
+func TestIncludeRules(t *testing.T) {
+	const testContent = `package main
+
+import "fmt"
+
+import (
+  "fmt"
+)
+
+func main() {
+  fmt.Println("Hello World")
+}
+`
+
+	m := MatcherConfigs{
+		includes: []string{"^src/", "^test/"},
+	}
+	c, err := m.Compile()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		filename string
+		want     bool
+	}{
+		{"src/main.go", false},
+		{"test/main.go", false},
+		{"main.go", true},
+		{"src/foo/main.go", false},
+		{"test/foo/main.go", false},
+		{"foo/main.go", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.filename, func(t *testing.T) {
+			skip, _ := c.Match(tt.filename, []byte(testContent))
+			if skip != tt.want {
+				t.Errorf("got %v, want %v", skip, tt.want)
+			}
+		})
 	}
 }
