@@ -3,6 +3,12 @@
 This directory contains replication scripts and documentation for preliminary evaluations used in the Science of
 Computer Programming journal entry.
 
+## Preparation
+
+- The documents and scripts assume that `iccheck` to be on the PATH. So, either:
+    - Build it from the source and revision you want,
+    - Or, download it from [the GitHub release](https://github.com/salab/iccheck/releases) assets.
+
 ## Data sources
 
 Some files included in this directory are copied from the following sources:
