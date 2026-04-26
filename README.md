@@ -230,3 +230,24 @@ The ignore definitions is a yaml array and syntax is as follows:
 There are some built-in default rules in ICCheck.
 See [pkg/domain/ignore.go](./pkg/domain/ignore.go) for the default rules.
 These default rules can be disabled by the `--disable-default-ignore` CLI option.
+
+## Related Publications
+
+If you use this tool in a scientific publication, we would appreciate citations to the following paper:
+
+[![DOI](https://img.shields.io/badge/DOI-10.1016/j.scico.2026.103472-blue)](https://doi.org/10.1016/j.scico.2026.103472)
+[![arXiv](https://img.shields.io/badge/arXiv-2504.04537-b31b1b.svg)](https://arxiv.org/abs/2504.04537)
+
+Motoki Abe and Shinpei Hayashi: "ICCheck: A Portable, Language-agnostic Tool for Synchronizing Code Clones". Science of Computer Programming, vol. 252, 103472, 2026.
+
+```
+@article{toki-scico202607,
+    author = {Motoki Abe and Shinpei Hayashi},
+    title = {{ICCheck}: {A} Portable, Language-agnostic Tool for Synchronizing Code Clones},
+    journal = {Science of Computer Programming},
+    volume = 252,
+    pages = {103472:1--10},
+    year = 2026,
+    doi = {10.1016/j.scico.2026.103472}
+}
+```
