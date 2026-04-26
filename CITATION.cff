@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+title: ICCheck
+message: "If you use this software, please cite it using the metadata from this file."
+type: software
+authors:
+  - given-names: Motoki
+    family-names: Abe
+url: https://github.com/salab/iccheck
+date-released: 2024-05-29
+identifiers:
+  - description: "The versioned DOI for v0.10.0 of the work."
+    type: doi
+    value: 10.5281/zenodo.15163079
+license: MIT
+preferred-citation:
+  type: article
+  title: "ICCheck: A Portable, Language-agnostic Tool for Synchronizing Code"
+  authors:
+    - given-names: Motoki
+      family-names: Abe
+      orcid: https://orcid.org/0009-0004-8830-550X
+    - given-names: Shinpei
+      family-names: Hayashi
+      orcid: https://orcid.org/0000-0001-7988-7772
+  journal: Science of Computer Programming
+  volume: 252
+  start: "103472:1"
+  end: "103472:10"
+  year: 2026
+  month: 7
+  doi: 10.1016/j.scico.2026.103472
+  url: https://doi.org/10.1016/j.scico.2026.103472
